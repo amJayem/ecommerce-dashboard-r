@@ -8,11 +8,12 @@ import {
   ArrowDownRight,
 } from "lucide-react"
 import { usePageTitle } from "@/hooks/use-page-title"
+import { formatCurrency } from "@/lib/constants"
 
 const stats = [
   {
     title: "Total Revenue",
-    value: "$45,231.89",
+    value: formatCurrency(45231.89),
     description: "+20.1% from last month",
     icon: DollarSign,
     trend: "up",
@@ -45,35 +46,35 @@ const recentSales = [
     id: 1,
     customer: "Olivia Martin",
     email: "olivia.martin@email.com",
-    amount: "$1,999.00",
+    amount: formatCurrency(1999.00),
     status: "completed",
   },
   {
     id: 2,
     customer: "Jackson Lee",
     email: "jackson.lee@email.com",
-    amount: "$39.00",
+    amount: formatCurrency(39.00),
     status: "pending",
   },
   {
     id: 3,
     customer: "Isabella Nguyen",
     email: "isabella.nguyen@email.com",
-    amount: "$299.00",
+    amount: formatCurrency(299.00),
     status: "completed",
   },
   {
     id: 4,
     customer: "William Kim",
     email: "will@email.com",
-    amount: "$99.00",
+    amount: formatCurrency(99.00),
     status: "completed",
   },
   {
     id: 5,
     customer: "Sofia Davis",
     email: "sofia.davis@email.com",
-    amount: "$39.00",
+    amount: formatCurrency(39.00),
     status: "pending",
   },
 ]

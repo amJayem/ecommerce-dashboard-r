@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Save, Bell, Lock, User, Store } from "lucide-react"
 import { usePageTitle } from "@/hooks/use-page-title"
+import { CURRENCY } from "@/lib/constants"
 
 export function Settings() {
   usePageTitle("Settings")
@@ -93,7 +94,7 @@ export function Settings() {
             <label htmlFor="currency" className="text-sm font-medium">
               Currency
             </label>
-            <Input id="currency" defaultValue="USD" />
+            <Input id="currency" defaultValue={CURRENCY.code} />
           </div>
           <Button>
             <Save className="mr-2 h-4 w-4" />

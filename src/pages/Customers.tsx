@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Users, Search, Mail, Phone, MapPin } from "lucide-react"
 import { usePageTitle } from "@/hooks/use-page-title"
+import { formatCurrency } from "@/lib/constants"
 
 const customers = [
   {
@@ -12,7 +13,7 @@ const customers = [
     phone: "+1 234 567 890",
     location: "New York, USA",
     orders: 12,
-    totalSpent: "$2,450.00",
+    totalSpent: formatCurrency(2450.00),
     status: "active",
   },
   {
@@ -22,7 +23,7 @@ const customers = [
     phone: "+1 234 567 891",
     location: "Los Angeles, USA",
     orders: 8,
-    totalSpent: "$1,890.00",
+    totalSpent: formatCurrency(1890.00),
     status: "active",
   },
   {
@@ -32,7 +33,7 @@ const customers = [
     phone: "+1 234 567 892",
     location: "San Francisco, USA",
     orders: 15,
-    totalSpent: "$3,200.00",
+    totalSpent: formatCurrency(3200.00),
     status: "active",
   },
   {
@@ -42,7 +43,7 @@ const customers = [
     phone: "+1 234 567 893",
     location: "Chicago, USA",
     orders: 5,
-    totalSpent: "$890.00",
+    totalSpent: formatCurrency(890.00),
     status: "inactive",
   },
   {
@@ -52,7 +53,7 @@ const customers = [
     phone: "+1 234 567 894",
     location: "Miami, USA",
     orders: 20,
-    totalSpent: "$4,500.00",
+    totalSpent: formatCurrency(4500.00),
     status: "active",
   },
 ]
@@ -110,7 +111,7 @@ export function Customers() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$12,930.00</div>
+            <div className="text-2xl font-bold">{formatCurrency(12930.00)}</div>
             <p className="text-xs text-muted-foreground">From all customers</p>
           </CardContent>
         </Card>

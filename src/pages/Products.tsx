@@ -3,13 +3,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Package, Plus, Search, Edit, Trash2 } from "lucide-react"
 import { usePageTitle } from "@/hooks/use-page-title"
+import { formatCurrency } from "@/lib/constants"
 
 const products = [
   {
     id: 1,
     name: "Wireless Headphones",
     category: "Electronics",
-    price: "$99.99",
+    price: formatCurrency(99.99),
     stock: 45,
     status: "active",
   },
@@ -17,7 +18,7 @@ const products = [
     id: 2,
     name: "Leather Wallet",
     category: "Accessories",
-    price: "$49.99",
+    price: formatCurrency(49.99),
     stock: 120,
     status: "active",
   },
@@ -25,7 +26,7 @@ const products = [
     id: 3,
     name: "Smart Watch",
     category: "Electronics",
-    price: "$199.99",
+    price: formatCurrency(199.99),
     stock: 0,
     status: "out of stock",
   },
@@ -33,7 +34,7 @@ const products = [
     id: 4,
     name: "Cotton T-Shirt",
     category: "Clothing",
-    price: "$24.99",
+    price: formatCurrency(24.99),
     stock: 200,
     status: "active",
   },
@@ -41,7 +42,7 @@ const products = [
     id: 5,
     name: "Running Shoes",
     category: "Footwear",
-    price: "$129.99",
+    price: formatCurrency(129.99),
     stock: 35,
     status: "active",
   },

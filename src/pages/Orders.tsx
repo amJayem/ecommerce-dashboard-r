@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ShoppingCart, Search, Eye, Download } from "lucide-react"
 import { usePageTitle } from "@/hooks/use-page-title"
+import { formatCurrency } from "@/lib/constants"
 
 const orders = [
   {
@@ -10,7 +11,7 @@ const orders = [
     customer: "Olivia Martin",
     email: "olivia.martin@email.com",
     items: 3,
-    total: "$1,999.00",
+    total: formatCurrency(1999.00),
     date: "2024-01-15",
     status: "completed",
   },
@@ -19,7 +20,7 @@ const orders = [
     customer: "Jackson Lee",
     email: "jackson.lee@email.com",
     items: 1,
-    total: "$39.00",
+    total: formatCurrency(39.00),
     date: "2024-01-14",
     status: "pending",
   },
@@ -28,7 +29,7 @@ const orders = [
     customer: "Isabella Nguyen",
     email: "isabella.nguyen@email.com",
     items: 2,
-    total: "$299.00",
+    total: formatCurrency(299.00),
     date: "2024-01-13",
     status: "completed",
   },
@@ -37,7 +38,7 @@ const orders = [
     customer: "William Kim",
     email: "will@email.com",
     items: 5,
-    total: "$99.00",
+    total: formatCurrency(99.00),
     date: "2024-01-12",
     status: "processing",
   },
@@ -46,7 +47,7 @@ const orders = [
     customer: "Sofia Davis",
     email: "sofia.davis@email.com",
     items: 1,
-    total: "$39.00",
+    total: formatCurrency(39.00),
     date: "2024-01-11",
     status: "pending",
   },
@@ -120,7 +121,7 @@ export function Orders() {
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$2,475.00</div>
+            <div className="text-2xl font-bold">{formatCurrency(2475.00)}</div>
             <p className="text-xs text-muted-foreground">Total revenue</p>
           </CardContent>
         </Card>
