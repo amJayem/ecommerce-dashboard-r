@@ -1,6 +1,7 @@
 import { createBrowserRouter } from "react-router-dom"
 import { DashboardLayout } from "@/layouts/DashboardLayout"
 import { AuthLayout } from "@/layouts/AuthLayout"
+import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { Overview } from "@/pages/Overview"
 import { Products } from "@/pages/Products"
 import { Orders } from "@/pages/Orders"
@@ -12,7 +13,11 @@ import { Register } from "@/pages/Register"
 export const router = createBrowserRouter([
   {
     path: "/",
-    element: <DashboardLayout />,
+    element: (
+      <ProtectedRoute>
+        <DashboardLayout />
+      </ProtectedRoute>
+    ),
     children: [
       {
         index: true,

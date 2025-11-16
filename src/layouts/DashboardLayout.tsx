@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useLocation, Outlet } from "react-router-dom";
+import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import {
   LayoutDashboard,
   Package,
@@ -30,6 +30,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useTheme } from "@/hooks/use-theme";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
 const navigation = [
@@ -43,7 +44,9 @@ const navigation = [
 export function DashboardLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const { resolvedTheme, setTheme } = useTheme();
+  const { user, logout } = useAuth();
 
   const isActive = (href: string) => {
     if (href === "/") {
@@ -221,9 +224,18 @@ export function DashboardLayout() {
               <DropdownMenuTrigger asChild>
                 <Button className="relative h-9 w-9 rounded-full">
                   <Avatar className="color-black h-9 w-9">
-                    <AvatarImage src="/placeholder-avatar.jpg" alt="User" />
+                    <AvatarImage src={user?.avatarUrl || undefined} alt={user?.name || "User"} />
                     <AvatarFallback className="bg-transparent">
-                      <User className="h-4 w-4" />
+                      {user?.name ? (
+                        user.name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .toUpperCase()
+                          .slice(0, 2)
+                      ) : (
+                        <User className="h-4 w-4" />
+                      )}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -231,23 +243,35 @@ export function DashboardLayout() {
               <DropdownMenuContent className="w-56" align="end">
                 <DropdownMenuLabel>
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">John Doe</p>
+                    <p className="text-sm font-medium leading-none">
+                      {user?.name || "User"}
+                    </p>
                     <p className="text-xs leading-none text-muted-foreground">
-                      john@example.com
+                      {user?.email || "user@example.com"}
                     </p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
+                <DropdownMenuItem asChild>
+                  <Link to="/settings">
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Profile</span>
+                  </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
+                <DropdownMenuItem asChild>
+                  <Link to="/settings">
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Settings</span>
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive">
+                <DropdownMenuItem 
+                  className="text-destructive"
+                  onClick={async () => {
+                    await logout();
+                    navigate('/auth/login', { replace: true });
+                  }}
+                >
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>
                 </DropdownMenuItem>
