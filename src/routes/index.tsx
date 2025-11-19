@@ -4,6 +4,7 @@ import { AuthLayout } from "@/layouts/AuthLayout"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { Overview } from "@/pages/Overview"
 import { Products } from "@/pages/Products"
+import { ProductForm } from "@/pages/ProductForm"
 import { Orders } from "@/pages/Orders"
 import { Customers } from "@/pages/Customers"
 import { Settings } from "@/pages/Settings"
@@ -26,6 +27,14 @@ export const router = createBrowserRouter([
       {
         path: "products",
         element: <Products />,
+      },
+      {
+        path: "products/new",
+        element: <ProductForm />,
+      },
+      {
+        path: "products/:productId/edit",
+        element: <ProductForm />,
       },
       {
         path: "orders",

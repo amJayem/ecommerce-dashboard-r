@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { Link, useNavigate } from "react-router-dom"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,6 +18,7 @@ type StockFilter = "all" | "yes" | "no"
 
 export function Products() {
   usePageTitle("Products")
+  const navigate = useNavigate()
   const { user } = useAuth()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
@@ -60,7 +62,12 @@ export function Products() {
             </div>
           )}
           <div>
-            <p className="font-medium">{product.name}</p>
+            <Link
+              to={`/products/${product.id}/edit`}
+              className="font-medium text-primary hover:underline"
+            >
+              {product.name}
+            </Link>
             <p className="text-sm text-muted-foreground">{product.slug}</p>
             {product.sku && (
               <p className="text-xs text-muted-foreground">SKU: {product.sku}</p>
@@ -220,14 +227,6 @@ export function Products() {
     fetchProducts()
   }, [currentPage, debouncedSearchQuery, statusFilter, featuredFilter, stockFilter, categoryId, limit])
 
-  // Reset to page 1 when limit changes
-  // useEffect(() => {
-  //   if (currentPage !== 1) {
-  //     setCurrentPage(1)
-  //   }
-  //   // eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, [limit])
-
   // Reset to page 1 when debounced search query changes (but not when clearing search)
   useEffect(() => {
     if (debouncedSearchQuery.trim() && currentPage !== 1) {
@@ -299,10 +298,10 @@ export function Products() {
           </p>
         </div>
         {isAdmin && (
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Product
-          </Button>
+          <Button onClick={() => navigate("/products/new")}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Product
+        </Button>
         )}
       </div>
 
@@ -494,7 +493,7 @@ export function Products() {
                   </button>
                 </span>
               )}
-            </div>
+          </div>
           )}
         </CardContent>
       </Card>
@@ -518,16 +517,20 @@ export function Products() {
               isAdmin
                 ? (product) => (
                     <>
-                      <Button variant="ghost" size="icon">
-                        <Edit className="h-4 w-4" />
-                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => navigate(`/products/${product.id}/edit`)}
+                      >
+                          <Edit className="h-4 w-4" />
+                        </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => handleDelete(product.id, product.name)}
                       >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                     </>
                   )
                 : undefined
@@ -590,7 +593,7 @@ export function Products() {
                   </div>
                 )}
               </div>
-            </div>
+                      </div>
           )}
 
           {/* Error Retry Button */}
@@ -605,7 +608,7 @@ export function Products() {
               >
                 Retry
               </Button>
-            </div>
+          </div>
           )}
         </CardContent>
       </Card>
