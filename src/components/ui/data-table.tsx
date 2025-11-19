@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils"
-import { AlertCircle, Loader2, Package } from "lucide-react"
+import { AlertCircle, Package } from "lucide-react"
 import * as React from "react"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export interface Column<T> {
   key: string
@@ -37,9 +38,46 @@ export function DataTable<T>({
 }: DataTableProps<T>) {
   // Loading state
   if (loading) {
+    const placeholderRows = Array.from({ length: 5 })
+
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className={cn("overflow-x-auto", className)}>
+        <table className="w-full">
+          <thead>
+            <tr className="border-b">
+              {columns.map((column) => (
+                <th
+                  key={column.key}
+                  className={cn("text-left p-4 font-medium", column.headerClassName)}
+                >
+                  {column.label}
+                </th>
+              ))}
+              {actions && (
+                <th className="text-right p-4 font-medium">{actionsHeader}</th>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {placeholderRows.map((_, rowIndex) => (
+              <tr key={`skeleton-${rowIndex}`} className="border-b">
+                {columns.map((column) => (
+                  <td key={column.key} className={cn("p-4", column.className)}>
+                    <Skeleton className="h-4 w-full" />
+                  </td>
+                ))}
+                {actions && (
+                  <td className="p-4">
+                    <div className="flex justify-end gap-2">
+                      <Skeleton className="h-9 w-9 rounded-md" />
+                      <Skeleton className="h-9 w-9 rounded-md" />
+                    </div>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     )
   }
