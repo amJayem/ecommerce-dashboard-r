@@ -5,6 +5,8 @@ import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { Overview } from "@/pages/Overview"
 import { Products } from "@/pages/Products"
 import { ProductForm } from "@/pages/ProductForm"
+import { Categories } from "@/pages/Categories"
+import { CategoryForm } from "@/pages/CategoryForm"
 import { Orders } from "@/pages/Orders"
 import { Customers } from "@/pages/Customers"
 import { Settings } from "@/pages/Settings"
@@ -29,12 +31,24 @@ export const router = createBrowserRouter([
         element: <Products />,
       },
       {
+        path: "categories",
+        element: <Categories />,
+      },
+      {
         path: "products/new",
         element: <ProductForm />,
       },
       {
         path: "products/:productId/edit",
         element: <ProductForm />,
+      },
+      {
+        path: "categories/new",
+        element: <CategoryForm />,
+      },
+      {
+        path: "categories/:categoryId/edit",
+        element: <CategoryForm />,
       },
       {
         path: "orders",

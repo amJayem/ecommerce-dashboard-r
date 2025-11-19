@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ShoppingBag,
+  Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,7 @@ import { cn } from "@/lib/utils";
 const navigation = [
   { name: "Overview", href: "/", icon: LayoutDashboard },
   { name: "Products", href: "/products", icon: Package },
+  { name: "Categories", href: "/categories", icon: Layers },
   { name: "Orders", href: "/orders", icon: ShoppingCart },
   { name: "Customers", href: "/customers", icon: Users },
   { name: "Settings", href: "/settings", icon: Settings },

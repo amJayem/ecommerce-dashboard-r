@@ -17,6 +17,10 @@ import {
   type Product,
 } from "@/lib/products"
 import {
+  categoryApi,
+  type Category,
+} from "@/lib/categories"
+import {
   AlertCircle,
   ArrowLeft,
   Loader2,
@@ -83,6 +87,9 @@ export function ProductForm() {
   const [isLoadingProduct, setIsLoadingProduct] = useState(isEditMode)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [coverImageError, setCoverImageError] = useState(false)
+  const [categories, setCategories] = useState<Category[]>([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
+  const [categoriesError, setCategoriesError] = useState<string | null>(null)
 
   const additionalImages = useMemo(() => {
     return formState.images
@@ -90,6 +97,18 @@ export function ProductForm() {
       .map((url) => url.trim())
       .filter(Boolean)
   }, [formState.images])
+
+  const categoryDropdownOptions = useMemo(() => {
+    return categories
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((category) => ({
+        id: category.id,
+        label: category.parent?.name
+          ? `${category.parent.name} › ${category.name}`
+          : category.name,
+      }))
+  }, [categories])
 
   useEffect(() => {
     const loadProduct = async () => {
@@ -116,6 +135,25 @@ export function ProductForm() {
   useEffect(() => {
     setCoverImageError(false)
   }, [formState.coverImage])
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setCategoriesLoading(true)
+        const data = await categoryApi.getCategories()
+        setCategories(data)
+        setCategoriesError(null)
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Failed to load categories"
+        setCategoriesError(message)
+      } finally {
+        setCategoriesLoading(false)
+      }
+    }
+
+    fetchCategories()
+  }, [])
 
   const hydrateForm = (product: Product) => {
     setFormState({
@@ -415,15 +453,39 @@ export function ProductForm() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="categoryId">Category ID</Label>
-                <Input
-                  id="categoryId"
-                  type="number"
-                  min="0"
-                  value={formState.categoryId}
-                  onChange={(e) => handleChange("categoryId", e.target.value)}
-                  placeholder="5"
-                />
+                <Label htmlFor="categoryId">Category</Label>
+                {categoriesError ? (
+                  <>
+                    <Input
+                      id="categoryId"
+                      type="number"
+                      min="0"
+                      value={formState.categoryId}
+                      onChange={(e) => handleChange("categoryId", e.target.value)}
+                      placeholder="Enter category ID"
+                    />
+                    <p className="text-xs text-destructive">
+                      {categoriesError}. Enter category ID manually.
+                    </p>
+                  </>
+                ) : (
+                  <select
+                    id="categoryId"
+                    value={formState.categoryId}
+                    onChange={(e) => handleChange("categoryId", e.target.value)}
+                    className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    disabled={categoriesLoading}
+                  >
+                    <option value="">
+                      {categoriesLoading ? "Loading categories..." : "Select a category"}
+                    </option>
+                    {categoryDropdownOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
 
