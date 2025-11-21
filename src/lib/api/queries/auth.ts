@@ -155,14 +155,11 @@ export const authMutations = {
 
   /**
    * Refresh access token using refresh token from cookie
+   * Returns user data if successful, throws error otherwise
    */
   refreshToken: async (): Promise<User> => {
-    try {
-      const response = await api.post<LoginResponse>("/auth/refresh");
-      return response.data.user;
-    } catch (error) {
-      return handleApiError(error, "Token refresh failed");
-    }
+    const response = await api.post<LoginResponse>("/auth/refresh");
+    return response.data.user;
   },
 };
 

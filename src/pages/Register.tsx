@@ -8,33 +8,24 @@ import { Label } from "@/components/ui/label"
 import { Mail, Lock, User, UserPlus, AlertCircle, Loader2, MapPin, Phone } from "lucide-react"
 import { usePageTitle } from "@/hooks/use-page-title"
 import { useRegister, useLogin } from "@/hooks/useAuthQuery"
+import { useAuth } from "@/hooks/useAuth"
 import { cn } from "@/lib/utils"
 
 export function Register() {
   usePageTitle("Register")
   const navigate = useNavigate()
   
-  // Check if user is already authenticated (check localStorage directly to avoid context dependency)
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+  // Check if user is already authenticated via AuthContext
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
   
   useEffect(() => {
-    // Check if user is already logged in
-    const storedUser = localStorage.getItem('user')
-    if (storedUser) {
-      try {
-        const user = JSON.parse(storedUser)
-        if (user && user.email) {
-          // User is already authenticated, redirect to dashboard
-          navigate("/", { replace: true })
-          return
-        }
-      } catch {
-        // Invalid stored user, clear it
-        localStorage.removeItem('user')
-      }
+    // Redirect if already authenticated
+    if (!authLoading && isAuthenticated) {
+      const redirectPath = sessionStorage.getItem("redirectAfterLogin") || "/"
+      sessionStorage.removeItem("redirectAfterLogin")
+      navigate(redirectPath, { replace: true })
     }
-    setIsCheckingAuth(false)
-  }, [navigate])
+  }, [isAuthenticated, authLoading, navigate])
 
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
@@ -161,7 +152,7 @@ export function Register() {
   }
 
   // Show loading state while checking authentication
-  if (isCheckingAuth) {
+  if (authLoading) {
     return (
       <Card>
         <CardContent className="flex items-center justify-center p-12">

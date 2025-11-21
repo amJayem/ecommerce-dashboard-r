@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useCurrentUser, useLogin as useLoginMutation, useLogout as useLogoutMutation } from '@/hooks/useAuthQuery';
 import { AuthContext } from './AuthContext.types';
 
@@ -8,44 +8,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginMutation = useLoginMutation();
   const logoutMutation = useLogoutMutation();
 
-  const isAuthenticated = !!user && !error;
+  // Track if we've attempted initial load
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
+  
+  // User is authenticated if we have user data and no error
+  // But don't mark as unauthenticated until we've attempted to load
+  const isAuthenticated = hasAttemptedLoad ? (!!user && !error) : isLoading;
 
-  // Sync user to localStorage when it changes
+  // Attempt to load user on mount
   useEffect(() => {
-    if (user) {
-      localStorage.setItem('user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('user');
+    if (!hasAttemptedLoad) {
+      setHasAttemptedLoad(true);
+      // The useCurrentUser hook will automatically attempt to fetch
+      // We don't need to manually call refetch here
     }
-  }, [user]);
+  }, [hasAttemptedLoad]);
 
-  // Listen for storage changes (when localStorage is updated from other tabs)
+  // Listen for unauthorized event (when token refresh fails)
   useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'user') {
-        // Re-validate when storage changes
-        refetch();
-      }
-    };
-
-    // Listen for custom auth update event (for same-tab updates)
-    const handleAuthUpdate = () => {
-      refetch();
-    };
-
-    // Listen for unauthorized event (when API returns 401)
     const handleUnauthorized = () => {
-      // React Query will handle this via the error state
+      // Clear user data from React Query cache
+      // The query will automatically refetch and fail, setting error state
       refetch();
     };
 
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('auth-update', handleAuthUpdate);
     window.addEventListener('auth-unauthorized', handleUnauthorized);
 
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('auth-update', handleAuthUpdate);
       window.removeEventListener('auth-unauthorized', handleUnauthorized);
     };
   }, [refetch]);
@@ -62,12 +51,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // React Query will automatically clear the user query cache
     } catch (error) {
       console.error('Logout error:', error);
+      // Even if logout fails, clear local state
     }
     // Navigation is handled by the component calling logout
   };
 
   const refreshUser = async () => {
     await refetch();
+  };
+
+  // Silent refresh function for interceptor use
+  const silentRefresh = async () => {
+    try {
+      await refetch();
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   return (
@@ -79,6 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         refreshUser,
+        silentRefresh,
       }}
     >
       {children}

@@ -58,8 +58,7 @@ export function useLogout() {
     onSuccess: () => {
       // Clear all auth-related queries
       queryClient.removeQueries({ queryKey: authKeys.all });
-      // Clear localStorage
-      localStorage.removeItem("user");
+      // Note: No localStorage token removal - tokens are in cookies only
     },
   });
 }

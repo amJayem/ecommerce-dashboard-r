@@ -88,9 +88,19 @@ export function Login() {
       }
       
       await login(trimmedEmail, password)
-      // Navigate to dashboard or back to the original page if redirected
-      const from = (location.state as { from?: { pathname: string } })?.from
-      navigate(from?.pathname || "/", { replace: true })
+      
+      // Get redirect path from sessionStorage (set by ProtectedRoute or axios interceptor)
+      // or from location state (set by ProtectedRoute)
+      const redirectPath = 
+        sessionStorage.getItem("redirectAfterLogin") ||
+        (location.state as { from?: { pathname: string } })?.from?.pathname ||
+        "/";
+      
+      // Clear the redirect path
+      sessionStorage.removeItem("redirectAfterLogin");
+      
+      // Navigate to the saved path or dashboard
+      navigate(redirectPath, { replace: true })
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Login failed. Please try again."
       setError(errorMessage)
