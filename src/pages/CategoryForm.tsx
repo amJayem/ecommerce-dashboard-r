@@ -28,11 +28,14 @@ import { DataTable, type Column } from "@/components/ui/data-table"
 import { usePageTitle } from "@/hooks/use-page-title"
 import { useAuth } from "@/hooks/useAuth"
 import {
-  categoryApi,
-  type Category,
+  useCategory,
+  useCategories,
+  useCategoryProducts,
+  useCreateCategory,
+  useUpdateCategory,
   type CreateCategoryRequest,
   type CategoryProduct,
-} from "@/lib/categories"
+} from "@/hooks/useCategories"
 import { formatCurrency } from "@/lib/constants"
 import { AlertCircle, ArrowLeft, Loader2, Save, Package, ExternalLink } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -62,19 +65,23 @@ export function CategoryForm() {
   const { user } = useAuth()
   const isAdmin = user?.role === "admin"
 
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [pageError, setPageError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [isLoadingCategory, setIsLoadingCategory] = useState(isEditMode)
   const [coverImageError, setCoverImageError] = useState(false)
 
-  const [categories, setCategories] = useState<Category[]>([])
-  const [categoriesLoading, setCategoriesLoading] = useState(true)
-  const [categoriesError, setCategoriesError] = useState<string | null>(null)
+  // React Query hooks
+  const { data: category, isLoading: isLoadingCategory } = useCategory(
+    isEditMode && categoryId ? Number(categoryId) : undefined
+  )
+  const { data: categories = [], isLoading: categoriesLoading, error: categoriesError } = useCategories()
+  const { data: products = [], isLoading: productsLoading, error: productsError } = useCategoryProducts(
+    isEditMode && categoryId ? Number(categoryId) : undefined
+  )
+  const createCategoryMutation = useCreateCategory()
+  const updateCategoryMutation = useUpdateCategory()
 
-  const [products, setProducts] = useState<CategoryProduct[]>([])
-  const [productsLoading, setProductsLoading] = useState(false)
-  const [productsError, setProductsError] = useState<string | null>(null)
+  const categoriesErrorMessage = categoriesError instanceof Error ? categoriesError.message : null
+  const productsErrorMessage = productsError instanceof Error ? productsError.message : null
 
   const form = useForm<CategoryFormValues>({
     // @ts-expect-error - zodResolver with z.coerce causes type inference issues, but works at runtime
@@ -93,87 +100,29 @@ export function CategoryForm() {
     },
   })
 
+  // Load category data into form when it's available
   useEffect(() => {
-    const loadCategory = async () => {
-      if (!isEditMode || !categoryId) {
-        setIsLoadingCategory(false)
-        return
-      }
-
-      try {
-        const category = await categoryApi.getCategoryById(Number(categoryId))
-        form.reset({
-          name: category.name ?? "",
-          slug: category.slug ?? "",
-          description: category.description ?? "",
-          icon: category.icon ?? "",
-          image: category.image ?? "",
-          parentId: category.parentId ?? null,
-          isActive: category.isActive,
-          sortOrder: category.sortOrder ?? 0,
-          metaTitle: category.metaTitle ?? "",
-          metaDescription: category.metaDescription ?? "",
-        })
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Failed to load category"
-        setPageError(message)
-      } finally {
-        setIsLoadingCategory(false)
-      }
+    if (category && isEditMode) {
+      form.reset({
+        name: category.name ?? "",
+        slug: category.slug ?? "",
+        description: category.description ?? "",
+        icon: category.icon ?? "",
+        image: category.image ?? "",
+        parentId: category.parentId ?? null,
+        isActive: category.isActive,
+        sortOrder: category.sortOrder ?? 0,
+        metaTitle: category.metaTitle ?? "",
+        metaDescription: category.metaDescription ?? "",
+      })
     }
-
-    loadCategory()
-  }, [isEditMode, categoryId, form])
-
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        setCategoriesLoading(true)
-        const data = await categoryApi.getCategories()
-        setCategories(data)
-        setCategoriesError(null)
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Failed to fetch categories"
-        setCategoriesError(message)
-      } finally {
-        setCategoriesLoading(false)
-      }
-    }
-
-    fetchCategories()
-  }, [])
+  }, [category, isEditMode, form])
 
   const coverImageValue = form.watch("image")
   useEffect(() => {
     setCoverImageError(false)
   }, [coverImageValue])
 
-  // Fetch products for this category when in edit mode
-  useEffect(() => {
-    const fetchProducts = async () => {
-      if (!isEditMode || !categoryId) {
-        return
-      }
-
-      try {
-        setProductsLoading(true)
-        setProductsError(null)
-        const categoryProducts = await categoryApi.getCategoryProducts(Number(categoryId))
-        setProducts(categoryProducts)
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Failed to fetch products"
-        setProductsError(message)
-        console.error("Error fetching category products:", error)
-      } finally {
-        setProductsLoading(false)
-      }
-    }
-
-    fetchProducts()
-  }, [isEditMode, categoryId])
 
   const availableParentOptions = useMemo(() => {
     return categories
@@ -298,8 +247,6 @@ export function CategoryForm() {
     setSuccessMessage(null)
 
     try {
-      setIsSubmitting(true)
-
       const parseNumber = (val: number | null | undefined) =>
         val !== null && val !== undefined ? Number(val) : undefined
 
@@ -317,13 +264,13 @@ export function CategoryForm() {
       }
 
       if (isEditMode && categoryId) {
-        await categoryApi.updateCategory({
+        await updateCategoryMutation.mutateAsync({
           id: Number(categoryId),
           ...payload,
         })
         setSuccessMessage("Category updated successfully.")
       } else {
-        const created = await categoryApi.createCategory(payload)
+        const created = await createCategoryMutation.mutateAsync(payload)
         setSuccessMessage("Category created successfully.")
         navigate(`/categories/${created.id}/edit`, { replace: true })
         return
@@ -332,8 +279,6 @@ export function CategoryForm() {
       const message =
         error instanceof Error ? error.message : "Failed to save category"
       setPageError(message)
-    } finally {
-      setIsSubmitting(false)
     }
   }
 
@@ -566,7 +511,7 @@ export function CategoryForm() {
                     <FormItem>
                       <FormLabel htmlFor="parentId">Parent Category</FormLabel>
                       <FormControl>
-                        {categoriesError ? (
+                        {categoriesErrorMessage ? (
                           <Input
                             id="parentId"
                             type="number"
@@ -597,9 +542,9 @@ export function CategoryForm() {
                           </Select>
                         )}
                       </FormControl>
-                      {categoriesError && (
-                        <FormDescription className="text-destructive">
-                          {categoriesError}. Enter parent ID manually if needed.
+                      {categoriesErrorMessage && (
+                          <FormDescription className="text-destructive">
+                            {categoriesErrorMessage}. Enter parent ID manually if needed.
                         </FormDescription>
                       )}
                       <FormMessage />
@@ -670,8 +615,8 @@ export function CategoryForm() {
               />
 
               <div className="flex items-center gap-3">
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? (
+                <Button type="submit" disabled={createCategoryMutation.isPending || updateCategoryMutation.isPending}>
+                  {createCategoryMutation.isPending || updateCategoryMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Saving...
@@ -725,7 +670,7 @@ export function CategoryForm() {
               columns={productColumns}
               data={products}
               loading={productsLoading}
-              error={productsError}
+              error={productsErrorMessage}
               emptyMessage="No products found in this category"
               keyExtractor={(product) => product.id}
             />

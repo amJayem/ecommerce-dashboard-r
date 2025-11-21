@@ -28,14 +28,13 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import { usePageTitle } from "@/hooks/use-page-title"
 import { useAuth } from "@/hooks/useAuth"
+import { useCategories } from "@/hooks/useCategories"
 import {
-  categoryApi,
-  type Category,
-} from "@/lib/categories"
-import {
-  productApi,
+  useProduct,
+  useCreateProduct,
+  useUpdateProduct,
   type CreateProductRequest,
-} from "@/lib/products"
+} from "@/hooks/useProducts"
 import {
   AlertCircle,
   ArrowLeft,
@@ -203,14 +202,19 @@ export function ProductForm() {
   const { user } = useAuth()
   const isAdmin = user?.role === "admin"
 
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [pageError, setPageError] = useState<string | null>(null)
-  const [isLoadingProduct, setIsLoadingProduct] = useState(isEditMode)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [coverImageError, setCoverImageError] = useState(false)
-  const [categories, setCategories] = useState<Category[]>([])
-  const [categoriesLoading, setCategoriesLoading] = useState(true)
-  const [categoriesError, setCategoriesError] = useState<string | null>(null)
+
+  // React Query hooks
+  const { data: product, isLoading: isLoadingProduct } = useProduct(
+    isEditMode && productId ? Number(productId) : undefined
+  )
+  const { data: categories = [], isLoading: categoriesLoading, error: categoriesError } = useCategories()
+  const createProductMutation = useCreateProduct()
+  const updateProductMutation = useUpdateProduct()
+
+  const categoriesErrorMessage = categoriesError instanceof Error ? categoriesError.message : null
 
   const form = useForm<ProductFormValues>({
     // @ts-expect-error - zodResolver with z.coerce causes type inference issues, but works at runtime
@@ -257,69 +261,36 @@ export function ProductForm() {
       }))
   }, [categories])
 
+  // Load product data into form when it's available
   useEffect(() => {
-    const loadProduct = async () => {
-      if (!isEditMode || !productId) {
-        setIsLoadingProduct(false)
-        return
-      }
-
-      try {
-        const product = await productApi.getProductById(Number(productId))
-        form.reset({
-          name: product.name ?? "",
-          slug: product.slug ?? "",
-          shortDescription: product.shortDescription ?? product.description ?? "",
-          description: product.detailedDescription ?? product.description ?? product.shortDescription ?? "",
-          price: product.price ?? 0,
-          originalPrice: product.originalPrice ?? null,
-          stock: product.stock ?? 0,
-          lowStockThreshold: product.lowStockThreshold ?? null,
-          categoryId: product.categoryId ?? null,
-          status: product.status ?? "draft",
-          featured: Boolean(product.featured),
-          isActive: Boolean(product.isActive),
-          unit: (product.unit as typeof unitOptions[number]) ?? "pcs",
-          weight: product.weight ?? null,
-          coverImage: product.coverImage ?? "",
-          images: product.images?.join(", ") ?? "",
-          tags: product.tags?.join(", ") ?? "",
-        })
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Failed to load product"
-        setPageError(message)
-      } finally {
-        setIsLoadingProduct(false)
-      }
+    if (product && isEditMode) {
+      form.reset({
+        name: product.name ?? "",
+        slug: product.slug ?? "",
+        shortDescription: product.shortDescription ?? product.description ?? "",
+        description: product.detailedDescription ?? product.description ?? product.shortDescription ?? "",
+        price: product.price ?? 0,
+        originalPrice: product.originalPrice ?? null,
+        stock: product.stock ?? 0,
+        lowStockThreshold: product.lowStockThreshold ?? null,
+        categoryId: product.categoryId ?? null,
+        status: product.status ?? "draft",
+        featured: Boolean(product.featured),
+        isActive: Boolean(product.isActive),
+        unit: (product.unit as typeof unitOptions[number]) ?? "pcs",
+        weight: product.weight ?? null,
+        coverImage: product.coverImage ?? "",
+        images: product.images?.join(", ") ?? "",
+        tags: product.tags?.join(", ") ?? "",
+      })
     }
-
-    loadProduct()
-  }, [isEditMode, productId, form])
+  }, [product, isEditMode, form])
 
   const coverImageValue = form.watch("coverImage")
   useEffect(() => {
     setCoverImageError(false)
   }, [coverImageValue])
 
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        setCategoriesLoading(true)
-        const data = await categoryApi.getCategories()
-        setCategories(data)
-        setCategoriesError(null)
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Failed to load categories"
-        setCategoriesError(message)
-      } finally {
-        setCategoriesLoading(false)
-      }
-    }
-
-    fetchCategories()
-  }, [])
 
   const onSubmit: SubmitHandler<ProductFormValues> = async (data) => {
     if (!isAdmin) {
@@ -331,8 +302,6 @@ export function ProductForm() {
     setSuccessMessage(null)
 
     try {
-      setIsSubmitting(true)
-
       const parseNumber = (val: number | null | undefined) =>
         val !== null && val !== undefined ? Number(val) : undefined
 
@@ -370,14 +339,13 @@ export function ProductForm() {
       }
 
       if (isEditMode && productId) {
-        await productApi.updateProduct({
+        await updateProductMutation.mutateAsync({
           id: Number(productId),
           ...payload,
         })
         setSuccessMessage("Product updated successfully.")
       } else {
-        const created = await productApi.createProduct(payload)
-        console.log(created)
+        await createProductMutation.mutateAsync(payload)
         setSuccessMessage("Product created successfully.")
         navigate(`/products`, { replace: true })
         return
@@ -386,8 +354,6 @@ export function ProductForm() {
       const message =
         error instanceof Error ? error.message : "Failed to save product"
       setPageError(message)
-    } finally {
-      setIsSubmitting(false)
     }
   }
 
@@ -706,7 +672,7 @@ export function ProductForm() {
                           Category <span className="text-muted-foreground">(optional)</span>
                         </FormLabel>
                         <FormControl>
-                          {categoriesError ? (
+                          {categoriesErrorMessage ? (
                             <Input
                               id="categoryId"
                               type="number"
@@ -734,12 +700,12 @@ export function ProductForm() {
                             </Select>
                           )}
                         </FormControl>
-                        {categoriesError && (
+                        {categoriesErrorMessage && (
                           <FormDescription className="text-destructive">
-                            {categoriesError}. Enter category ID manually.
+                            {categoriesErrorMessage}. Enter category ID manually.
                           </FormDescription>
                         )}
-                        {!categoriesError && (
+                        {!categoriesErrorMessage && (
                           <FormDescription>
                             The category this product belongs to.
                           </FormDescription>
@@ -1008,8 +974,8 @@ export function ProductForm() {
               </div>
 
               <div className="flex items-center gap-3 pt-6">
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? (
+                <Button type="submit" disabled={createProductMutation.isPending || updateProductMutation.isPending}>
+                  {createProductMutation.isPending || updateProductMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Saving...

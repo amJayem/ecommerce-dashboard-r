@@ -1,71 +1,42 @@
-import { useState, useEffect, type ReactNode } from 'react';
-import { authApi, type User } from '@/lib/api';
+import { useEffect, type ReactNode } from 'react';
+import { useCurrentUser, useLogin as useLoginMutation, useLogout as useLogoutMutation } from '@/hooks/useAuthQuery';
 import { AuthContext } from './AuthContext.types';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // React Query hooks
+  const { data: user, isLoading, error, refetch } = useCurrentUser();
+  const loginMutation = useLoginMutation();
+  const logoutMutation = useLogoutMutation();
 
-  // Validate authentication with backend on mount
+  const isAuthenticated = !!user && !error;
+
+  // Sync user to localStorage when it changes
   useEffect(() => {
-    const validateAuth = async () => {
-      setIsLoading(true);
+    if (user) {
+      localStorage.setItem('user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('user');
+    }
+  }, [user]);
 
-      // First, try to get user from localStorage (for quick UI render)
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        try {
-          const parsedUser = JSON.parse(storedUser);
-          setUser(parsedUser);
-        } catch (error) {
-          console.error('Error parsing stored user:', error);
-          localStorage.removeItem('user');
-          setUser(null);
-        }
-      }
-
-      // Then validate with backend - this is the critical step
-      // Never rely solely on localStorage to determine authentication status
-      try {
-        // Use /auth/me to get fresh user data and validate authentication
-        // This is better than refreshToken because it doesn't refresh tokens unnecessarily
-        const userData = await authApi.getCurrentUser();
-        setUser(userData);
-        setIsAuthenticated(true);
-        // Update localStorage with fresh user data (ensures role and other fields are up-to-date)
-        localStorage.setItem('user', JSON.stringify(userData));
-      } catch (error) {
-        // Token invalid, expired, or not present - clear everything
-        console.error('Auth validation failed:', error);
-        setUser(null);
-        setIsAuthenticated(false);
-        localStorage.removeItem('user');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    validateAuth();
-
-    // Listen for storage changes (when localStorage is updated from other tabs)
+  // Listen for storage changes (when localStorage is updated from other tabs)
+  useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'user') {
         // Re-validate when storage changes
-        validateAuth();
+        refetch();
       }
     };
 
     // Listen for custom auth update event (for same-tab updates)
     const handleAuthUpdate = () => {
-      validateAuth();
+      refetch();
     };
 
     // Listen for unauthorized event (when API returns 401)
     const handleUnauthorized = () => {
-      setUser(null);
-      setIsAuthenticated(false);
-      localStorage.removeItem('user');
+      // React Query will handle this via the error state
+      refetch();
     };
 
     window.addEventListener('storage', handleStorageChange);
@@ -77,48 +48,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('auth-update', handleAuthUpdate);
       window.removeEventListener('auth-unauthorized', handleUnauthorized);
     };
-  }, []);
+  }, [refetch]);
 
   const login = async (email: string, password: string) => {
-    const userData = await authApi.login(email, password);
-    setUser(userData);
-    setIsAuthenticated(true);
-    localStorage.setItem('user', JSON.stringify(userData));
+    await loginMutation.mutateAsync({ email, password });
+    // React Query will automatically update the user query cache
     // Navigation is handled by the component calling login
   };
 
   const logout = async () => {
     try {
-      await authApi.logout();
+      await logoutMutation.mutateAsync();
+      // React Query will automatically clear the user query cache
     } catch (error) {
       console.error('Logout error:', error);
-    } finally {
-      setUser(null);
-      setIsAuthenticated(false);
-      localStorage.removeItem('user');
-      // Navigation is handled by the component calling logout
     }
+    // Navigation is handled by the component calling logout
   };
 
   const refreshUser = async () => {
-    try {
-      const userData = await authApi.getCurrentUser();
-      setUser(userData);
-      setIsAuthenticated(true);
-      localStorage.setItem('user', JSON.stringify(userData));
-    } catch (error) {
-      console.error('Failed to refresh user data:', error);
-      // If refresh fails, user might be logged out
-      setUser(null);
-      setIsAuthenticated(false);
-      localStorage.removeItem('user');
-    }
+    await refetch();
   };
 
   return (
     <AuthContext.Provider
       value={{
-        user,
+        user: user ?? null,
         isLoading,
         isAuthenticated,
         login,

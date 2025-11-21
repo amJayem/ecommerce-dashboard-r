@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -8,7 +8,7 @@ import { Package, Plus, Search, Edit, Trash2, X, Filter } from "lucide-react"
 import { usePageTitle } from "@/hooks/use-page-title"
 import { useDebounce } from "@/hooks/use-debounce"
 import { formatCurrency } from "@/lib/constants"
-import { productApi, type Product, type ProductListParams } from "@/lib/products"
+import { useProducts, useDeleteProduct, type Product, type ProductListParams } from "@/hooks/useProducts"
 import { useAuth } from "@/hooks/useAuth"
 import { cn } from "@/lib/utils"
 
@@ -20,19 +20,10 @@ export function Products() {
   usePageTitle("Products")
   const navigate = useNavigate()
   const { user } = useAuth()
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const debouncedSearchQuery = useDebounce(searchQuery, 500) // Debounce search input by 500ms
   const [currentPage, setCurrentPage] = useState(1)
   const [limit, setLimit] = useState(20) // Items per page
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 20,
-    total: 0,
-    pages: 0,
-  })
 
   // Filter states
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
@@ -42,6 +33,54 @@ export function Products() {
   const [showFilters, setShowFilters] = useState(false)
 
   const isAdmin = user?.role === "admin"
+
+  // Build query params
+  const queryParams = useMemo<ProductListParams>(() => {
+    const params: ProductListParams = {
+      page: currentPage,
+      limit: limit,
+    }
+
+    // Apply filters
+    if (statusFilter !== "all") {
+      params.status = statusFilter
+    }
+
+    if (featuredFilter !== "all") {
+      params.featured = featuredFilter === "yes"
+    }
+
+    if (stockFilter !== "all") {
+      params.inStock = stockFilter === "yes"
+    }
+
+    if (categoryId.trim()) {
+      const categoryIdNum = parseInt(categoryId.trim())
+      if (!isNaN(categoryIdNum)) {
+        params.categoryId = categoryIdNum
+      }
+    }
+
+    if (debouncedSearchQuery.trim()) {
+      params.search = debouncedSearchQuery.trim()
+    }
+
+    return params
+  }, [currentPage, limit, statusFilter, featuredFilter, stockFilter, categoryId, debouncedSearchQuery])
+
+  // React Query hooks
+  const { data, isLoading, error, refetch } = useProducts(queryParams)
+  const deleteProductMutation = useDeleteProduct()
+
+  const products = data?.products ?? []
+  const pagination = data?.pagination ?? {
+    page: 1,
+    limit: 20,
+    total: 0,
+    pages: 0,
+  }
+  const loading = isLoading
+  const errorMessage = error instanceof Error ? error.message : null
 
   // Define table columns
   const columns: Column<Product>[] = [
@@ -177,56 +216,6 @@ export function Products() {
     },
   ]
 
-  // Fetch products
-  useEffect(() => {
-    const fetchProducts = async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const params: ProductListParams = {
-          page: currentPage,
-          limit: limit,
-        }
-
-        // Apply filters
-        if (statusFilter !== "all") {
-          params.status = statusFilter
-        }
-
-        if (featuredFilter !== "all") {
-          params.featured = featuredFilter === "yes"
-        }
-
-        if (stockFilter !== "all") {
-          params.inStock = stockFilter === "yes"
-        }
-
-        if (categoryId.trim()) {
-          const categoryIdNum = parseInt(categoryId.trim())
-          if (!isNaN(categoryIdNum)) {
-            params.categoryId = categoryIdNum
-          }
-        }
-
-        if (debouncedSearchQuery.trim()) {
-          params.search = debouncedSearchQuery.trim()
-        }
-
-        const response = await productApi.getProducts(params)
-        setProducts(response.products)
-        setPagination(response.pagination)
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "Failed to fetch products"
-        setError(errorMessage)
-        console.error("Error fetching products:", err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchProducts()
-  }, [currentPage, debouncedSearchQuery, statusFilter, featuredFilter, stockFilter, categoryId, limit])
-
   // Reset to page 1 when debounced search query changes (but not when clearing search)
   useEffect(() => {
     if (debouncedSearchQuery.trim() && currentPage !== 1) {
@@ -262,24 +251,8 @@ export function Products() {
     }
 
     try {
-      await productApi.deleteProduct(id)
-      // Refresh products list with current filters
-      const params: ProductListParams = {
-        page: currentPage,
-        limit: limit,
-      }
-      if (statusFilter !== "all") params.status = statusFilter
-      if (featuredFilter !== "all") params.featured = featuredFilter === "yes"
-      if (stockFilter !== "all") params.inStock = stockFilter === "yes"
-      if (categoryId.trim()) {
-        const categoryIdNum = parseInt(categoryId.trim())
-        if (!isNaN(categoryIdNum)) params.categoryId = categoryIdNum
-      }
-      if (debouncedSearchQuery.trim()) params.search = debouncedSearchQuery.trim()
-
-      const response = await productApi.getProducts(params)
-      setProducts(response.products)
-      setPagination(response.pagination)
+      await deleteProductMutation.mutateAsync(id)
+      // React Query will automatically refetch the products list
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to delete product"
       alert(errorMessage)
@@ -511,7 +484,7 @@ export function Products() {
             columns={columns}
             data={products}
             loading={loading}
-            error={error}
+            error={errorMessage}
             emptyMessage="No products found"
             actions={
               isAdmin
@@ -597,13 +570,12 @@ export function Products() {
           )}
 
           {/* Error Retry Button */}
-          {error && (
+          {errorMessage && (
             <div className="flex justify-center mt-4">
               <Button
                 variant="outline"
                 onClick={() => {
-                  setError(null)
-                  setCurrentPage(1)
+                  refetch()
                 }}
               >
                 Retry

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Mail, Lock, User, UserPlus, AlertCircle, Loader2, MapPin, Phone } from "lucide-react"
 import { usePageTitle } from "@/hooks/use-page-title"
-import { authApi } from "@/lib/api"
+import { useRegister, useLogin } from "@/hooks/useAuthQuery"
 import { cn } from "@/lib/utils"
 
 export function Register() {
@@ -44,7 +44,12 @@ export function Register() {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  
+  // React Query mutations
+  const registerMutation = useRegister()
+  const loginMutation = useLogin()
+  
+  const isLoading = registerMutation.isPending || loginMutation.isPending
   const [fieldErrors, setFieldErrors] = useState<{
     name?: string
     email?: string
@@ -111,8 +116,6 @@ export function Register() {
       return
     }
 
-    setIsLoading(true)
-
     try {
       const registerData = {
         email: email.trim(),
@@ -122,21 +125,11 @@ export function Register() {
         ...(phoneNumber.trim() && { phoneNumber: phoneNumber.trim() }),
       }
 
-      const response = await authApi.register(registerData)
-      console.log(response)
+      await registerMutation.mutateAsync(registerData)
       
       // After successful registration, automatically log in the user
-      // Since register returns tokens in body, we can use them to set auth state
-      // But for consistency with login flow, let's just redirect to login with a success message
-      // Or we could auto-login by calling the login function
-      
-      // Option 1: Auto-login after registration
       try {
-        const userData = await authApi.login(email.trim(), password)
-        console.log("login successful", userData)
-        
-        // Update localStorage so AuthContext picks up the user
-        localStorage.setItem('user', JSON.stringify(userData))
+        await loginMutation.mutateAsync({ email: email.trim(), password })
         
         // Trigger a custom event to notify AuthContext
         window.dispatchEvent(new Event('auth-update'))
@@ -161,9 +154,10 @@ export function Register() {
       // Clear passwords on error for security
       setPassword("")
       setConfirmPassword("")
-    } finally {
-      setIsLoading(false)
-    }
+    } 
+    // finally {
+    //   setIsLoading(false)
+    // }
   }
 
   // Show loading state while checking authentication

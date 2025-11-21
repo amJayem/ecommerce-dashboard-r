@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { useDebounce } from "@/hooks/use-debounce"
 import { usePageTitle } from "@/hooks/use-page-title"
 import { useAuth } from "@/hooks/useAuth"
-import { categoryApi, type Category } from "@/lib/categories"
+import { useCategories, useDeleteCategory, type Category } from "@/hooks/useCategories"
 import { cn } from "@/lib/utils"
 import {
     Edit,
@@ -21,7 +21,7 @@ import {
     Search,
     Trash2
 } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 
 type StatusFilter = "all" | "active" | "inactive"
@@ -31,32 +31,17 @@ export function Categories() {
   const navigate = useNavigate()
   const { user } = useAuth()
 
-  const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const debouncedSearch = useDebounce(searchQuery, 300)
 
   const isAdmin = user?.role === "admin"
 
-  useEffect(() => {
-    fetchCategories()
-  }, [])
+  // React Query hooks
+  const { data: categories = [], isLoading: loading, error, refetch } = useCategories()
+  const deleteCategoryMutation = useDeleteCategory()
 
-  const fetchCategories = async () => {
-    try {
-      setLoading(true)
-      const data = await categoryApi.getCategories()
-      setCategories(data)
-      setError(null)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to load categories"
-      setError(message)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const errorMessage = error instanceof Error ? error.message : null
 
   const filteredCategories = useMemo(() => {
     return categories.filter((category) => {
@@ -142,8 +127,8 @@ export function Categories() {
     }
 
     try {
-      await categoryApi.deleteCategory(category.id)
-      await fetchCategories()
+      await deleteCategoryMutation.mutateAsync(category.id)
+      // React Query will automatically refetch the categories list
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to delete category"
       alert(message)
@@ -163,7 +148,7 @@ export function Categories() {
           <Button
             variant="outline"
             size="sm"
-            onClick={fetchCategories}
+            onClick={() => refetch()}
             disabled={loading}
           >
             <RefreshCcw className="mr-2 h-4 w-4" />
@@ -218,11 +203,11 @@ export function Categories() {
           <CardDescription>Overview of every category in the catalog.</CardDescription>
         </CardHeader>
         <CardContent>
-          {error ? (
+          {errorMessage ? (
             <div className="flex flex-col items-center justify-center gap-2 py-12">
               <EyeOff className="h-6 w-6 text-destructive" />
-              <p className="text-sm text-destructive">{error}</p>
-              <Button variant="outline" onClick={fetchCategories}>
+              <p className="text-sm text-destructive">{errorMessage}</p>
+              <Button variant="outline" onClick={() => refetch()}>
                 Retry
               </Button>
             </div>
