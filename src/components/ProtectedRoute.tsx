@@ -1,8 +1,7 @@
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/useAuth'
 import { AlertCircle, Loader2, LogOut } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
@@ -10,92 +9,37 @@ interface ProtectedRouteProps {
 
 /**
  * ProtectedRoute component that ensures only authenticated non-customer users can access the dashboard
- * - Attempts automatic token refresh before redirecting to login
- * - Only redirects to login if refresh fails
+ * - Waits for auth.initialize() to finish before redirecting
+ * - Only redirects to login if user is not authenticated after initialization
  * - Stores current path for redirect after login
  * - Blocks access if user is a customer
  */
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading, user, logout, silentRefresh } = useAuth()
+  const { isAuthenticated, isLoading, user, logout } = useAuth()
   const location = useLocation()
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const [hasAttemptedRefresh, setHasAttemptedRefresh] = useState(false)
+  const navigate = useNavigate()
 
-  // Attempt silent refresh if not authenticated and haven't tried yet
-  // Only attempt if we're actually on a protected route (not already on login/register)
-  useEffect(() => {
-    const isAuthRoute =
-      location.pathname === '/auth/login' ||
-      location.pathname === '/auth/register'
-
-    if (
-      !isLoading &&
-      !isAuthenticated &&
-      !hasAttemptedRefresh &&
-      !isAuthRoute
-    ) {
-      setIsRefreshing(true)
-      setHasAttemptedRefresh(true)
-
-      // Add a small delay to prevent race conditions with login
-      const timeoutId = setTimeout(() => {
-        // Try to refresh token silently
-        silentRefresh()
-          .then((success) => {
-            if (!success) {
-              // Refresh failed - store current path for redirect after login
-              const currentPath = location.pathname
-              if (
-                currentPath !== '/auth/login' &&
-                currentPath !== '/auth/register'
-              ) {
-                sessionStorage.setItem('redirectAfterLogin', currentPath)
-              }
-            }
-          })
-          .catch(() => {
-            // Refresh failed - store current path
-            const currentPath = location.pathname
-            if (
-              currentPath !== '/auth/login' &&
-              currentPath !== '/auth/register'
-            ) {
-              sessionStorage.setItem('redirectAfterLogin', currentPath)
-            }
-          })
-          .finally(() => {
-            setIsRefreshing(false)
-          })
-      }, 100) // Small delay to prevent race conditions
-
-      return () => clearTimeout(timeoutId)
-    }
-  }, [
-    isLoading,
-    isAuthenticated,
-    hasAttemptedRefresh,
-    location.pathname,
-    silentRefresh
-  ])
-
-  // Show loading state while checking authentication or refreshing
-  if (isLoading || isRefreshing) {
+  // Show loading state while initializing (waiting for initialize() to finish)
+  if (isLoading) {
     return (
       <div className='flex h-screen items-center justify-center'>
         <div className='flex flex-col items-center gap-4'>
           <Loader2 className='h-8 w-8 animate-spin text-muted-foreground' />
           <p className='text-sm text-muted-foreground'>
-            {isRefreshing
-              ? 'Refreshing session...'
-              : 'Checking authentication...'}
+            Checking authentication...
           </p>
         </div>
       </div>
     )
   }
 
-  // Only redirect to login if refresh has been attempted and still not authenticated
-  if (!isAuthenticated && hasAttemptedRefresh) {
+  // Redirect to login if not authenticated (after initialization is complete)
+  if (!isAuthenticated) {
+    // Store current path for redirect after login
+    const currentPath = location.pathname
+    if (currentPath !== '/auth/login' && currentPath !== '/auth/register') {
+      sessionStorage.setItem('redirectAfterLogin', currentPath)
+    }
     return <Navigate to='/auth/login' state={{ from: location }} replace />
   }
 
@@ -104,7 +48,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   if (user?.role === 'customer') {
     const handleLogout = async () => {
       await logout()
-      window.location.href = '/auth/login'
+      navigate('/auth/login', { replace: true })
     }
 
     return (

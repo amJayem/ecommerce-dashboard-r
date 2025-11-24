@@ -1,103 +1,110 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import {
-  useCurrentUser,
-  useLogin as useLoginMutation,
-  useLogout as useLogoutMutation
-} from '@/hooks/useAuthQuery'
+import { useState, useEffect, useCallback, type ReactNode } from 'react'
+import { authQueries, authMutations, type User } from '@/lib/api/queries/auth'
+import axios from 'axios'
 import { AuthContext } from './AuthContext.types'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // React Query hooks
-  const { data: user, isLoading, error, refetch } = useCurrentUser()
-  const loginMutation = useLoginMutation()
-  const logoutMutation = useLogoutMutation()
+  const [user, setUser] = useState<User | null>(null)
+  const [isInitializing, setIsInitializing] = useState(true)
 
-  // Track if we've attempted initial load
-  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false)
+  const isAuthenticated = !!user
 
-  // User is authenticated if we have user data and no error
-  // But don't mark as unauthenticated until we've attempted to load
-  const isAuthenticated = hasAttemptedLoad ? !!user && !error : isLoading
+  /**
+   * getMe() - Get current user with automatic refresh on 401
+   * - Calls GET /auth/me
+   * - If 401, calls POST /auth/refresh once, then retries getMe() once
+   * - If refresh fails, returns null (logout will be handled by caller)
+   */
+  const getMe = useCallback(async (): Promise<User | null> => {
+    try {
+      const userData = await authQueries.getCurrentUser()
+      return userData
+    } catch (error) {
+      // Check if it's a 401 error (expired access token)
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        try {
+          // Attempt to refresh token (only once)
+          await authMutations.refreshToken()
 
-  // Attempt to load user on mount
-  useEffect(() => {
-    if (!hasAttemptedLoad) {
-      setHasAttemptedLoad(true)
-      // The useCurrentUser hook will automatically attempt to fetch
-      // We don't need to manually call refetch here
-    }
-  }, [hasAttemptedLoad])
-
-  // Listen for unauthorized event (when token refresh fails)
-  useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout> | null = null
-
-    const handleUnauthorized = () => {
-      // Clear any pending refetch
-      if (timeoutId) {
-        clearTimeout(timeoutId)
+          // Retry getMe() only once after refresh
+          try {
+            const userData = await authQueries.getCurrentUser()
+            return userData
+          } catch (retryError) {
+            // Retry failed - refresh didn't work or token is still invalid
+            return null
+          }
+        } catch (refreshError) {
+          // Refresh failed - return null to trigger logout
+          return null
+        }
       }
 
-      // Use a small delay to prevent rapid successive calls
-      timeoutId = setTimeout(() => {
-        refetch()
-        timeoutId = null
-      }, 100)
+      // For non-401 errors, return null
+      return null
     }
-
-    window.addEventListener('auth-unauthorized', handleUnauthorized)
-
-    return () => {
-      window.removeEventListener('auth-unauthorized', handleUnauthorized)
-      if (timeoutId) {
-        clearTimeout(timeoutId)
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    // refetch is stable from React Query, but we don't want to recreate listener on every render
   }, [])
 
-  const login = async (email: string, password: string) => {
-    await loginMutation.mutateAsync({ email, password })
-    // React Query will automatically update the user query cache
-    // Navigation is handled by the component calling login
-  }
-
-  const logout = async () => {
+  /**
+   * initialize() - Initialize auth state on app start
+   * - Calls getMe() to check if user is authenticated
+   * - Sets user if authenticated, clears if not
+   */
+  const initialize = useCallback(async () => {
+    setIsInitializing(true)
     try {
-      await logoutMutation.mutateAsync()
-      // React Query will automatically clear the user query cache
+      const userData = await getMe()
+      if (userData) {
+        setUser(userData)
+      } else {
+        setUser(null)
+      }
+    } catch (error) {
+      console.error('Auth initialization error:', error)
+      setUser(null)
+    } finally {
+      setIsInitializing(false)
+    }
+  }, [getMe])
+
+  /**
+   * login() - Login user and set user state
+   */
+  const login = useCallback(async (email: string, password: string) => {
+    const userData = await authMutations.login(email, password)
+    setUser(userData)
+  }, [])
+
+  /**
+   * logout() - Logout user and clear state
+   * Navigation should be handled by the component calling logout
+   */
+  const logout = useCallback(async () => {
+    try {
+      await authMutations.logout()
     } catch (error) {
       console.error('Logout error:', error)
       // Even if logout fails, clear local state
+    } finally {
+      setUser(null)
     }
-    // Navigation is handled by the component calling logout
-  }
+  }, [])
 
-  const refreshUser = async () => {
-    await refetch()
-  }
-
-  // Silent refresh function for interceptor use
-  const silentRefresh = async () => {
-    try {
-      await refetch()
-      return true
-    } catch {
-      return false
-    }
-  }
+  // Initialize auth on mount
+  useEffect(() => {
+    initialize()
+  }, [initialize])
 
   return (
     <AuthContext.Provider
       value={{
-        user: user ?? null,
-        isLoading,
+        user,
+        isLoading: isInitializing,
         isAuthenticated,
         login,
         logout,
-        refreshUser,
-        silentRefresh
+        initialize,
+        setUser
       }}>
       {children}
     </AuthContext.Provider>

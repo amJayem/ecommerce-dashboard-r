@@ -22,7 +22,7 @@ import {
   Phone
 } from 'lucide-react'
 import { usePageTitle } from '@/hooks/use-page-title'
-import { useRegister, useLogin } from '@/hooks/useAuthQuery'
+import { useRegister } from '@/hooks/useAuthQuery'
 import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
 
@@ -31,7 +31,7 @@ export function Register() {
   const navigate = useNavigate()
 
   // Check if user is already authenticated via AuthContext
-  const { isAuthenticated, isLoading: authLoading } = useAuth()
+  const { isAuthenticated, isLoading: authLoading, login } = useAuth()
 
   useEffect(() => {
     // Redirect if already authenticated
@@ -53,9 +53,7 @@ export function Register() {
 
   // React Query mutations
   const registerMutation = useRegister()
-  const loginMutation = useLogin()
-
-  const isLoading = registerMutation.isPending || loginMutation.isPending
+  const [isLoading, setIsLoading] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<{
     name?: string
     email?: string
@@ -126,6 +124,8 @@ export function Register() {
       return
     }
 
+    setIsLoading(true)
+
     try {
       const registerData = {
         email: email.trim(),
@@ -139,15 +139,14 @@ export function Register() {
 
       // After successful registration, automatically log in the user
       try {
-        await loginMutation.mutateAsync({ email: email.trim(), password })
+        await login(email.trim(), password)
 
-        // Trigger a custom event to notify AuthContext
-        window.dispatchEvent(new Event('auth-update'))
+        // Get redirect path from sessionStorage or default to dashboard
+        const redirectPath = sessionStorage.getItem('redirectAfterLogin') || '/'
+        sessionStorage.removeItem('redirectAfterLogin')
 
-        // Small delay to ensure state updates, then navigate
-        setTimeout(() => {
-          navigate('/', { replace: true })
-        }, 100)
+        // Navigate to the saved path or dashboard
+        navigate(redirectPath, { replace: true })
       } catch (loginError) {
         console.log('login error', loginError)
         // If auto-login fails, redirect to login page
@@ -168,10 +167,9 @@ export function Register() {
       // Clear passwords on error for security
       setPassword('')
       setConfirmPassword('')
+    } finally {
+      setIsLoading(false)
     }
-    // finally {
-    //   setIsLoading(false)
-    // }
   }
 
   // Show loading state while checking authentication
