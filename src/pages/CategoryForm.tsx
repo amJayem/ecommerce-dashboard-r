@@ -1,16 +1,16 @@
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useEffect, useMemo, useState } from "react"
-import { useForm, type SubmitHandler } from "react-hook-form"
-import { useNavigate, useParams, Link } from "react-router-dom"
-import { z } from "zod"
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect, useMemo, useState } from "react";
+import { useForm, type SubmitHandler } from "react-hook-form";
+import { useNavigate, useParams, Link } from "react-router-dom";
+import { z } from "zod";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -19,14 +19,13 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Select } from "@/components/ui/select"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Textarea } from "@/components/ui/textarea"
-import { DataTable, type Column } from "@/components/ui/data-table"
-import { usePageTitle } from "@/hooks/use-page-title"
-import { useAuth } from "@/hooks/useAuth"
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { DataTable, type Column } from "@/components/ui/data-table";
+import { usePageTitle } from "@/hooks/use-page-title";
 import {
   useCategory,
   useCategories,
@@ -35,53 +34,96 @@ import {
   useUpdateCategory,
   type CreateCategoryRequest,
   type CategoryProduct,
-} from "@/hooks/useCategories"
-import { formatCurrency } from "@/lib/constants"
-import { AlertCircle, ArrowLeft, Loader2, Save, Package, ExternalLink } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Label } from "@/components/ui/label"
+} from "@/hooks/useCategories";
+import { formatCurrency } from "@/lib/constants";
+import {
+  AlertCircle,
+  Loader2,
+  Save,
+  Package,
+  ExternalLink,
+  ArrowLeft,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Label } from "@/components/ui/label";
 
 const categoryFormSchema = z.object({
-  name: z.string().min(1, "Category name is required").max(255, "Name is too long"),
-  slug: z.string().min(1, "Slug is required").regex(/^[a-z0-9-]+$/, "Slug must contain only lowercase letters, numbers, and hyphens"),
-  description: z.string().min(1, "Description is required").max(2000, "Description is too long"),
+  name: z
+    .string()
+    .min(1, "Category name is required")
+    .max(255, "Name is too long"),
+  slug: z
+    .string()
+    .min(1, "Slug is required")
+    .regex(
+      /^[a-z0-9-]+$/,
+      "Slug must contain only lowercase letters, numbers, and hyphens"
+    ),
+  description: z
+    .string()
+    .min(1, "Description is required")
+    .max(2000, "Description is too long"),
   icon: z.string().max(4, "Icon must be 4 characters or less").optional(),
-  image: z.string().url("Image must be a valid URL").optional().or(z.literal("")),
-  parentId: z.coerce.number().int("Parent ID must be a whole number").positive("Invalid parent category").optional().nullable(),
+  image: z
+    .string()
+    .url("Image must be a valid URL")
+    .optional()
+    .or(z.literal("")),
+  parentId: z.coerce
+    .number()
+    .int("Parent ID must be a whole number")
+    .positive("Invalid parent category")
+    .optional()
+    .nullable(),
   isActive: z.boolean().default(true),
-  sortOrder: z.coerce.number().int("Sort order must be a whole number").min(0, "Sort order cannot be negative").default(0),
+  sortOrder: z.coerce
+    .number()
+    .int("Sort order must be a whole number")
+    .min(0, "Sort order cannot be negative")
+    .default(0),
   metaTitle: z.string().max(255, "Meta title is too long").optional(),
-  metaDescription: z.string().max(500, "Meta description is too long").optional(),
-})
+  metaDescription: z
+    .string()
+    .max(500, "Meta description is too long")
+    .optional(),
+});
 
-type CategoryFormValues = z.infer<typeof categoryFormSchema>
+type CategoryFormValues = z.infer<typeof categoryFormSchema>;
 
 export function CategoryForm() {
-  const { categoryId } = useParams<{ categoryId?: string }>()
-  const isEditMode = Boolean(categoryId)
-  usePageTitle(isEditMode ? "Edit Category" : "Add Category")
+  const { categoryId } = useParams<{ categoryId?: string }>();
+  const isEditMode = Boolean(categoryId);
+  usePageTitle(isEditMode ? "Edit Category" : "Add Category");
 
-  const navigate = useNavigate()
-  const { user } = useAuth()
-  const isAdmin = user?.role === "admin"
+  const navigate = useNavigate();
 
-  const [pageError, setPageError] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [coverImageError, setCoverImageError] = useState(false)
+  const [pageError, setPageError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [coverImageError, setCoverImageError] = useState(false);
 
   // React Query hooks
   const { data: category, isLoading: isLoadingCategory } = useCategory(
     isEditMode && categoryId ? Number(categoryId) : undefined
-  )
-  const { data: categories = [], isLoading: categoriesLoading, error: categoriesError } = useCategories()
-  const { data: products = [], isLoading: productsLoading, error: productsError } = useCategoryProducts(
+  );
+  const {
+    data: categories = [],
+    isLoading: categoriesLoading,
+    error: categoriesError,
+  } = useCategories();
+  const {
+    data: products = [],
+    isLoading: productsLoading,
+    error: productsError,
+  } = useCategoryProducts(
     isEditMode && categoryId ? Number(categoryId) : undefined
-  )
-  const createCategoryMutation = useCreateCategory()
-  const updateCategoryMutation = useUpdateCategory()
+  );
+  const createCategoryMutation = useCreateCategory();
+  const updateCategoryMutation = useUpdateCategory();
 
-  const categoriesErrorMessage = categoriesError instanceof Error ? categoriesError.message : null
-  const productsErrorMessage = productsError instanceof Error ? productsError.message : null
+  const categoriesErrorMessage =
+    categoriesError instanceof Error ? categoriesError.message : null;
+  const productsErrorMessage =
+    productsError instanceof Error ? productsError.message : null;
 
   const form = useForm<CategoryFormValues>({
     // @ts-expect-error - zodResolver with z.coerce causes type inference issues, but works at runtime
@@ -98,7 +140,7 @@ export function CategoryForm() {
       metaTitle: "",
       metaDescription: "",
     },
-  })
+  });
 
   // Load category data into form when it's available
   useEffect(() => {
@@ -114,21 +156,20 @@ export function CategoryForm() {
         sortOrder: category.sortOrder ?? 0,
         metaTitle: category.metaTitle ?? "",
         metaDescription: category.metaDescription ?? "",
-      })
+      });
     }
-  }, [category, isEditMode, form])
+  }, [category, isEditMode, form]);
 
-  const coverImageValue = form.watch("image")
+  const coverImageValue = form.watch("image");
   useEffect(() => {
-    setCoverImageError(false)
-  }, [coverImageValue])
-
+    setCoverImageError(false);
+  }, [coverImageValue]);
 
   const availableParentOptions = useMemo(() => {
     return categories
       .filter((category) => category.id !== Number(categoryId))
-      .sort((a, b) => a.name.localeCompare(b.name))
-  }, [categories, categoryId])
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [categories, categoryId]);
 
   // Define columns for products table
   const productColumns: Column<CategoryProduct>[] = useMemo(
@@ -186,8 +227,8 @@ export function CategoryForm() {
               product.stock === 0
                 ? "text-destructive"
                 : product.stock < 10
-                  ? "text-orange-600 dark:text-orange-400"
-                  : "text-foreground"
+                ? "text-orange-600 dark:text-orange-400"
+                : "text-foreground"
             )}
           >
             {product.stock}
@@ -198,7 +239,7 @@ export function CategoryForm() {
         key: "status",
         label: "Status",
         render: (product) => {
-          const status = product.status || "draft"
+          const status = product.status || "draft";
           return (
             <span
               className={cn(
@@ -206,13 +247,13 @@ export function CategoryForm() {
                 status === "published"
                   ? "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400"
                   : status === "draft"
-                    ? "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400"
-                    : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                  ? "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400"
+                  : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
               )}
             >
               {status.charAt(0).toUpperCase() + status.slice(1)}
             </span>
-          )
+          );
         },
       },
       {
@@ -235,20 +276,15 @@ export function CategoryForm() {
       },
     ],
     []
-  )
+  );
 
   const onSubmit: SubmitHandler<CategoryFormValues> = async (data) => {
-    if (!isAdmin) {
-      setPageError("You do not have permission to perform this action.")
-      return
-    }
-
-    setPageError(null)
-    setSuccessMessage(null)
+    setPageError(null);
+    setSuccessMessage(null);
 
     try {
       const parseNumber = (val: number | null | undefined) =>
-        val !== null && val !== undefined ? Number(val) : undefined
+        val !== null && val !== undefined ? Number(val) : undefined;
 
       const payload: CreateCategoryRequest = {
         name: data.name.trim(),
@@ -261,54 +297,29 @@ export function CategoryForm() {
         sortOrder: parseNumber(data.sortOrder),
         metaTitle: data.metaTitle?.trim() || undefined,
         metaDescription: data.metaDescription?.trim() || undefined,
-      }
+      };
 
       if (isEditMode && categoryId) {
         await updateCategoryMutation.mutateAsync({
           id: Number(categoryId),
           ...payload,
-        })
-        setSuccessMessage("Category updated successfully.")
+        });
+        setSuccessMessage("Category updated successfully.");
       } else {
-        const created = await createCategoryMutation.mutateAsync(payload)
-        setSuccessMessage("Category created successfully.")
-        navigate(`/categories/${created.id}/edit`, { replace: true })
-        return
+        const created = await createCategoryMutation.mutateAsync(payload);
+        setSuccessMessage("Category created successfully.");
+        navigate(`/categories/${created.id}/edit`, { replace: true });
+        return;
       }
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Failed to save category"
-      setPageError(message)
+        error instanceof Error ? error.message : "Failed to save category";
+      setPageError(message);
     }
-  }
+  };
 
-  if (!isAdmin) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-2">
-          <ArrowLeft className="h-4 w-4" />
-          <Link to="/categories" className="text-sm text-primary hover:underline">
-            Back to categories
-          </Link>
-        </div>
-        <Card>
-          <CardHeader>
-            <CardTitle>Access Restricted</CardTitle>
-            <CardDescription>
-              Only administrators can add or edit categories.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              Please contact an administrator if you believe this is an error.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    )}
-  
   if (isEditMode && isLoadingCategory) {
-    return <CategoryFormSkeleton />
+    return <CategoryFormSkeleton />;
   }
 
   return (
@@ -371,11 +382,7 @@ export function CategoryForm() {
                     <FormItem>
                       <FormLabel htmlFor="name">Name</FormLabel>
                       <FormControl>
-                        <Input
-                          id="name"
-                          placeholder="Beverages"
-                          {...field}
-                        />
+                        <Input id="name" placeholder="Beverages" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -389,11 +396,7 @@ export function CategoryForm() {
                     <FormItem>
                       <FormLabel htmlFor="slug">Slug</FormLabel>
                       <FormControl>
-                        <Input
-                          id="slug"
-                          placeholder="beverages"
-                          {...field}
-                        />
+                        <Input id="slug" placeholder="beverages" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -454,7 +457,11 @@ export function CategoryForm() {
                           type="number"
                           min="0"
                           {...field}
-                          onChange={(e) => field.onChange(e.target.value === "" ? 0 : e.target.value)}
+                          onChange={(e) =>
+                            field.onChange(
+                              e.target.value === "" ? 0 : e.target.value
+                            )
+                          }
                         />
                       </FormControl>
                       <FormMessage />
@@ -519,7 +526,11 @@ export function CategoryForm() {
                             placeholder="Enter parent category ID"
                             {...field}
                             value={field.value ?? ""}
-                            onChange={(e) => field.onChange(e.target.value === "" ? null : e.target.value)}
+                            onChange={(e) =>
+                              field.onChange(
+                                e.target.value === "" ? null : e.target.value
+                              )
+                            }
                           />
                         ) : (
                           <Select
@@ -527,10 +538,18 @@ export function CategoryForm() {
                             disabled={categoriesLoading}
                             {...field}
                             value={field.value?.toString() ?? ""}
-                            onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
+                            onChange={(e) =>
+                              field.onChange(
+                                e.target.value === ""
+                                  ? null
+                                  : Number(e.target.value)
+                              )
+                            }
                           >
                             <option value="">
-                              {categoriesLoading ? "Loading categories..." : "No parent (top level)"}
+                              {categoriesLoading
+                                ? "Loading categories..."
+                                : "No parent (top level)"}
                             </option>
                             {availableParentOptions.map((category) => (
                               <option key={category.id} value={category.id}>
@@ -543,8 +562,9 @@ export function CategoryForm() {
                         )}
                       </FormControl>
                       {categoriesErrorMessage && (
-                          <FormDescription className="text-destructive">
-                            {categoriesErrorMessage}. Enter parent ID manually if needed.
+                        <FormDescription className="text-destructive">
+                          {categoriesErrorMessage}. Enter parent ID manually if
+                          needed.
                         </FormDescription>
                       )}
                       <FormMessage />
@@ -578,7 +598,9 @@ export function CategoryForm() {
                   name="metaDescription"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel htmlFor="metaDescription">Meta Description</FormLabel>
+                      <FormLabel htmlFor="metaDescription">
+                        Meta Description
+                      </FormLabel>
                       <FormControl>
                         <Textarea
                           id="metaDescription"
@@ -615,8 +637,15 @@ export function CategoryForm() {
               />
 
               <div className="flex items-center gap-3">
-                <Button type="submit" disabled={createCategoryMutation.isPending || updateCategoryMutation.isPending}>
-                  {createCategoryMutation.isPending || updateCategoryMutation.isPending ? (
+                <Button
+                  type="submit"
+                  disabled={
+                    createCategoryMutation.isPending ||
+                    updateCategoryMutation.isPending
+                  }
+                >
+                  {createCategoryMutation.isPending ||
+                  updateCategoryMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Saving...
@@ -650,7 +679,9 @@ export function CategoryForm() {
                 <CardTitle>Products in this Category</CardTitle>
                 <CardDescription>
                   {products.length > 0
-                    ? `${products.length} product${products.length === 1 ? "" : "s"} found in this category`
+                    ? `${products.length} product${
+                        products.length === 1 ? "" : "s"
+                      } found in this category`
                     : "No products found in this category"}
                 </CardDescription>
               </div>
@@ -678,7 +709,7 @@ export function CategoryForm() {
         </Card>
       )}
     </div>
-  )
+  );
 }
 
 function CategoryFormSkeleton() {
@@ -699,9 +730,7 @@ function CategoryFormSkeleton() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Edit Category</h1>
-          <p className="text-muted-foreground">
-            Update the category details.
-          </p>
+          <p className="text-muted-foreground">Update the category details.</p>
         </div>
       </div>
 
@@ -824,5 +853,5 @@ function CategoryFormSkeleton() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

@@ -1,64 +1,67 @@
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card"
-import { DataTable, type Column } from "@/components/ui/data-table"
-import { Input } from "@/components/ui/input"
-import { useDebounce } from "@/hooks/use-debounce"
-import { usePageTitle } from "@/hooks/use-page-title"
-import { useAuth } from "@/hooks/useAuth"
-import { useCategories, useDeleteCategory, type Category } from "@/hooks/useCategories"
-import { cn } from "@/lib/utils"
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { DataTable, type Column } from "@/components/ui/data-table";
+import { Input } from "@/components/ui/input";
+import { useDebounce } from "@/hooks/use-debounce";
+import { usePageTitle } from "@/hooks/use-page-title";
+import { useAuth } from "@/hooks/useAuth";
 import {
-    Edit,
-    EyeOff,
-    Plus,
-    RefreshCcw,
-    Search,
-    Trash2
-} from "lucide-react"
-import { useMemo, useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
+  useCategories,
+  useDeleteCategory,
+  type Category,
+} from "@/hooks/useCategories";
+import { cn } from "@/lib/utils";
+import { Edit, EyeOff, Plus, RefreshCcw, Search, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
-type StatusFilter = "all" | "active" | "inactive"
+type StatusFilter = "all" | "active" | "inactive";
 
 export function Categories() {
-  usePageTitle("Categories")
-  const navigate = useNavigate()
-  const { user } = useAuth()
+  usePageTitle("Categories");
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
-  const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
-  const debouncedSearch = useDebounce(searchQuery, 300)
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
-  const isAdmin = user?.role === "admin"
+  const userRole = user?.role?.toLowerCase();
+  const isAdmin = userRole === "admin" || userRole === "super_admin";
 
   // React Query hooks
-  const { data: categories = [], isLoading: loading, error, refetch } = useCategories()
-  const deleteCategoryMutation = useDeleteCategory()
+  const {
+    data: categories = [],
+    isLoading: loading,
+    error,
+    refetch,
+  } = useCategories();
+  const deleteCategoryMutation = useDeleteCategory();
 
-  const errorMessage = error instanceof Error ? error.message : null
+  const errorMessage = error instanceof Error ? error.message : null;
 
   const filteredCategories = useMemo(() => {
     return categories.filter((category) => {
       const matchesSearch =
         category.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        category.slug.toLowerCase().includes(debouncedSearch.toLowerCase())
+        category.slug.toLowerCase().includes(debouncedSearch.toLowerCase());
 
       const matchesStatus =
         statusFilter === "all"
           ? true
           : statusFilter === "active"
           ? category.isActive
-          : !category.isActive
+          : !category.isActive;
 
-      return matchesSearch && matchesStatus
-    })
-  }, [categories, debouncedSearch, statusFilter])
+      return matchesSearch && matchesStatus;
+    });
+  }, [categories, debouncedSearch, statusFilter]);
 
   const columns: Column<Category>[] = [
     {
@@ -67,7 +70,8 @@ export function Categories() {
       render: (category) => (
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-sm font-semibold">
-            {category.icon || (category.name ? category.name.charAt(0).toUpperCase() : "C")}
+            {category.icon ||
+              (category.name ? category.name.charAt(0).toUpperCase() : "C")}
           </div>
           <div>
             <Link
@@ -119,21 +123,22 @@ export function Categories() {
       label: "Order",
       render: (category) => <span>{category.sortOrder ?? 0}</span>,
     },
-  ]
+  ];
 
   const handleDelete = async (category: Category) => {
     if (!confirm(`Delete "${category.name}"? This cannot be undone.`)) {
-      return
+      return;
     }
 
     try {
-      await deleteCategoryMutation.mutateAsync(category.id)
+      await deleteCategoryMutation.mutateAsync(category.id);
       // React Query will automatically refetch the categories list
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to delete category"
-      alert(message)
+      const message =
+        err instanceof Error ? err.message : "Failed to delete category";
+      alert(message);
     }
-  }
+  };
 
   return (
     <div className="space-y-8">
@@ -200,7 +205,9 @@ export function Categories() {
       <Card>
         <CardHeader>
           <CardTitle>All Categories</CardTitle>
-          <CardDescription>Overview of every category in the catalog.</CardDescription>
+          <CardDescription>
+            Overview of every category in the catalog.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {errorMessage ? (
@@ -224,7 +231,9 @@ export function Categories() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => navigate(`/categories/${category.id}/edit`)}
+                          onClick={() =>
+                            navigate(`/categories/${category.id}/edit`)
+                          }
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -245,6 +254,5 @@ export function Categories() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
-

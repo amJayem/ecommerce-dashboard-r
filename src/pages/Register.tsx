@@ -131,6 +131,7 @@ export function Register() {
         email: email.trim(),
         name: name.trim(),
         address: address.trim(),
+        role: 'moderator',
         password,
         ...(phoneNumber.trim() && { phoneNumber: phoneNumber.trim() })
       }

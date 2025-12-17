@@ -34,7 +34,9 @@ import { useTheme } from "@/hooks/use-theme";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
-const navigation = [
+import { usePermissions } from "@/hooks/usePermissions";
+
+const initialNavigation = [
   { name: "Overview", href: "/", icon: LayoutDashboard },
   { name: "Products", href: "/products", icon: Package },
   { name: "Categories", href: "/categories", icon: Layers },
@@ -49,6 +51,14 @@ export function DashboardLayout() {
   const navigate = useNavigate();
   const { resolvedTheme, setTheme } = useTheme();
   const { user, logout } = useAuth();
+  const { hasPermission } = usePermissions();
+
+  const navigation = [
+    ...initialNavigation,
+    ...(hasPermission("user.read")
+      ? [{ name: "Users", href: "/admin/users", icon: Users }]
+      : []),
+  ];
 
   const isActive = (href: string) => {
     if (href === "/") {
@@ -77,9 +87,9 @@ export function DashboardLayout() {
       >
         {/* Sidebar Header */}
         <div className="flex h-16 items-center justify-between px-4 border-b border-sidebar-border">
-          {!sidebarCollapsed && 
-          <div className="text-2xl font-bold">eCommerce</div>
-          }
+          {!sidebarCollapsed && (
+            <div className="text-2xl font-bold">eCommerce</div>
+          )}
           {sidebarCollapsed && (
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 mx-auto">
               <ShoppingBag className="h-5 w-5 text-primary" />
@@ -226,7 +236,10 @@ export function DashboardLayout() {
               <DropdownMenuTrigger asChild>
                 <Button className="relative h-9 w-9 rounded-full">
                   <Avatar className="color-black h-9 w-9">
-                    <AvatarImage src={user?.avatarUrl || undefined} alt={user?.name || "User"} />
+                    <AvatarImage
+                      src={user?.avatarUrl || undefined}
+                      alt={user?.name || "User"}
+                    />
                     <AvatarFallback className="bg-transparent">
                       {user?.name ? (
                         user.name
@@ -267,11 +280,11 @@ export function DashboardLayout() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   className="text-destructive"
                   onClick={async () => {
                     await logout();
-                    navigate('/auth/login', { replace: true });
+                    navigate("/auth/login", { replace: true });
                   }}
                 >
                   <LogOut className="mr-2 h-4 w-4" />

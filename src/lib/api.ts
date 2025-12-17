@@ -25,6 +25,18 @@ api.interceptors.response.use(
       // Dispatch custom event to notify AuthContext
       window.dispatchEvent(new CustomEvent('auth-unauthorized'))
     }
+
+    // Handle 403 Forbidden (Suspended Account)
+    if (axios.isAxiosError(error) && error.response?.status === 403) {
+      const errorMessage = (error.response.data as any)?.message || ''
+      if (errorMessage.toLowerCase().includes('suspended')) {
+         // Clear localStorage
+         localStorage.removeItem('user')
+         // Dispatch custom event to notify App or AuthContext
+         // providing the message to be shown to the user
+         window.dispatchEvent(new CustomEvent('auth-restricted', { detail: errorMessage }))
+      }
+    }
     return Promise.reject(error)
   }
 )
