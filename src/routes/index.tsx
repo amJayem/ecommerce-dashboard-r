@@ -64,7 +64,7 @@ export const router = createBrowserRouter([
         element: <Settings />,
       },
       {
-        path: "admin/users",
+        path: "users",
         element: <Users />,
       },
     ],

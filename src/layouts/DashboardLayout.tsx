@@ -56,7 +56,7 @@ export function DashboardLayout() {
   const navigation = [
     ...initialNavigation,
     ...(hasPermission("user.read")
-      ? [{ name: "Users", href: "/admin/users", icon: Users }]
+      ? [{ name: "Users", href: "/users", icon: Users }]
       : []),
   ];
 

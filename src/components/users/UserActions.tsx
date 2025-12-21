@@ -14,16 +14,18 @@ import { Loader2 } from "lucide-react";
 
 interface UserActionsProps {
   userId: number;
+  userName: string;
   status: string;
-  onApprove: (id: number) => Promise<void>;
+  onManageAccess: (id: number, name: string) => void;
   onReject: (id: number) => Promise<void>;
   onSuspend: (id: number) => Promise<void>;
 }
 
 export function UserActions({
   userId,
+  userName,
   status,
-  onApprove,
+  onManageAccess,
   onReject,
   onSuspend,
 }: UserActionsProps) {
@@ -57,11 +59,9 @@ export function UserActions({
 
         {hasPermission("user.approve") && status === "PENDING" && (
           <>
-            <DropdownMenuItem
-              onClick={() => handleAction(() => onApprove(userId))}
-            >
+            <DropdownMenuItem onClick={() => onManageAccess(userId, userName)}>
               <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
-              Approve
+              Manage Access
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => handleAction(() => onReject(userId))}

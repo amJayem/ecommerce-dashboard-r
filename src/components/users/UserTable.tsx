@@ -13,7 +13,7 @@ import { UserActions } from "./UserActions";
 interface UserTableProps {
   users: User[];
   isLoading: boolean;
-  onApprove: (id: number) => Promise<void>;
+  onManageAccess: (id: number, name: string) => void;
   onReject: (id: number) => Promise<void>;
   onSuspend: (id: number) => Promise<void>;
 }
@@ -21,7 +21,7 @@ interface UserTableProps {
 export function UserTable({
   users,
   isLoading,
-  onApprove,
+  onManageAccess,
   onReject,
   onSuspend,
 }: UserTableProps) {
@@ -79,11 +79,12 @@ export function UserTable({
               <TableCell className="text-right">
                 <UserActions
                   userId={user.id}
+                  userName={user.name}
                   status={
                     (user as any).status ||
                     (user.isVerified ? "APPROVED" : "PENDING")
                   }
-                  onApprove={onApprove}
+                  onManageAccess={onManageAccess}
                   onReject={onReject}
                   onSuspend={onSuspend}
                 />
