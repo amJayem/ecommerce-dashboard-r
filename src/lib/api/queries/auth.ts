@@ -17,6 +17,8 @@ export interface User {
   isVerified: boolean
   phoneNumber: string | null
   createdAt: string
+  permissions?: any[]
+  permissionNames?: string[]
 }
 
 export interface LoginResponse {

@@ -10,7 +10,7 @@ import { DataTable, type Column } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { useDebounce } from "@/hooks/use-debounce";
 import { usePageTitle } from "@/hooks/use-page-title";
-import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import {
   useCategories,
   useDeleteCategory,
@@ -20,20 +20,18 @@ import { cn } from "@/lib/utils";
 import { Edit, EyeOff, Plus, RefreshCcw, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
 
 type StatusFilter = "all" | "active" | "inactive";
 
 export function Categories() {
   usePageTitle("Categories");
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { hasPermission } = usePermissions();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const debouncedSearch = useDebounce(searchQuery, 300);
-
-  const userRole = user?.role?.toLowerCase();
-  const isAdmin = userRole === "admin" || userRole === "super_admin";
 
   // React Query hooks
   const {
@@ -75,8 +73,17 @@ export function Categories() {
           </div>
           <div>
             <Link
-              to={`/categories/${category.id}/edit`}
-              className="font-medium text-primary hover:underline"
+              to={
+                hasPermission("category.update")
+                  ? `/categories/${category.id}/edit`
+                  : "#"
+              }
+              className={cn(
+                "font-medium transition-colors",
+                hasPermission("category.update")
+                  ? "text-primary hover:underline cursor-pointer"
+                  : "text-foreground cursor-default"
+              )}
             >
               {category.name}
             </Link>
@@ -136,9 +143,12 @@ export function Categories() {
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to delete category";
-      alert(message);
+      toast.error(message);
     }
   };
+
+  const showActions =
+    hasPermission("category.update") || hasPermission("category.delete");
 
   return (
     <div className="space-y-8">
@@ -159,7 +169,7 @@ export function Categories() {
             <RefreshCcw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
-          {isAdmin && (
+          {hasPermission("category.create") && (
             <Button onClick={() => navigate("/categories/new")}>
               <Plus className="mr-2 h-4 w-4" />
               New Category
@@ -225,26 +235,30 @@ export function Categories() {
               loading={loading}
               keyExtractor={(category) => category.id}
               actions={
-                isAdmin
+                showActions
                   ? (category) => (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() =>
-                            navigate(`/categories/${category.id}/edit`)
-                          }
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(category)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </>
+                      <div className="flex items-center gap-2">
+                        {hasPermission("category.update") && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() =>
+                              navigate(`/categories/${category.id}/edit`)
+                            }
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {hasPermission("category.delete") && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(category)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
+                      </div>
                     )
                   : undefined
               }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
 import {
   Card,
   CardContent,
@@ -20,7 +21,7 @@ import {
   type Product,
   type ProductListParams,
 } from "@/hooks/useProducts";
-import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { cn } from "@/lib/utils";
 
 type StatusFilter = "all" | "draft" | "published" | "archived";
@@ -30,7 +31,7 @@ type StockFilter = "all" | "yes" | "no";
 export function Products() {
   usePageTitle("Products");
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearchQuery = useDebounce(searchQuery, 500); // Debounce search input by 500ms
   const [currentPage, setCurrentPage] = useState(1);
@@ -42,9 +43,6 @@ export function Products() {
   const [stockFilter, setStockFilter] = useState<StockFilter>("all");
   const [categoryId, setCategoryId] = useState<string>("");
   const [showFilters, setShowFilters] = useState(false);
-
-  const userRole = user?.role?.toLowerCase();
-  const isAdmin = userRole === "admin" || userRole === "super_admin";
 
   // Build query params
   const queryParams = useMemo<ProductListParams>(() => {
@@ -122,8 +120,17 @@ export function Products() {
           )}
           <div>
             <Link
-              to={`/products/${product.id}/edit`}
-              className="font-medium text-primary hover:underline"
+              to={
+                hasPermission("product.update")
+                  ? `/products/${product.id}/edit`
+                  : "#"
+              }
+              className={cn(
+                "font-medium transition-colors",
+                hasPermission("product.update")
+                  ? "text-primary hover:underline cursor-pointer"
+                  : "text-foreground cursor-default"
+              )}
             >
               {product.name}
             </Link>
@@ -278,10 +285,13 @@ export function Products() {
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to delete product";
-      alert(errorMessage);
+      toast.error(errorMessage);
       console.error("Error deleting product:", err);
     }
   };
+
+  const showActions =
+    hasPermission("product.update") || hasPermission("product.delete");
 
   return (
     <div className="space-y-8">
@@ -293,7 +303,7 @@ export function Products() {
             Manage your product inventory and details.
           </p>
         </div>
-        {isAdmin && (
+        {hasPermission("product.create") && (
           <Button variant="default" onClick={() => navigate("/products/new")}>
             <Plus className="mr-2 h-4 w-4" />
             Add Product
@@ -512,24 +522,30 @@ export function Products() {
             error={errorMessage}
             emptyMessage="No products found"
             actions={
-              isAdmin
+              showActions
                 ? (product) => (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => navigate(`/products/${product.id}/edit`)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(product.id, product.name)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </>
+                    <div className="flex items-center gap-2">
+                      {hasPermission("product.update") && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            navigate(`/products/${product.id}/edit`)
+                          }
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {hasPermission("product.delete") && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(product.id, product.name)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
                   )
                 : undefined
             }

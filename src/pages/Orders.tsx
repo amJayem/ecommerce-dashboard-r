@@ -1,9 +1,16 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { ShoppingCart, Search, Eye, Download } from "lucide-react"
-import { usePageTitle } from "@/hooks/use-page-title"
-import { formatCurrency } from "@/lib/constants"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ShoppingCart, Search, Eye, Download } from "lucide-react";
+import { usePageTitle } from "@/hooks/use-page-title";
+import { formatCurrency } from "@/lib/constants";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const orders = [
   {
@@ -11,7 +18,7 @@ const orders = [
     customer: "Olivia Martin",
     email: "olivia.martin@email.com",
     items: 3,
-    total: formatCurrency(1999.00),
+    total: formatCurrency(1999.0),
     date: "2024-01-15",
     status: "completed",
   },
@@ -20,7 +27,7 @@ const orders = [
     customer: "Jackson Lee",
     email: "jackson.lee@email.com",
     items: 1,
-    total: formatCurrency(39.00),
+    total: formatCurrency(39.0),
     date: "2024-01-14",
     status: "pending",
   },
@@ -29,7 +36,7 @@ const orders = [
     customer: "Isabella Nguyen",
     email: "isabella.nguyen@email.com",
     items: 2,
-    total: formatCurrency(299.00),
+    total: formatCurrency(299.0),
     date: "2024-01-13",
     status: "completed",
   },
@@ -38,7 +45,7 @@ const orders = [
     customer: "William Kim",
     email: "will@email.com",
     items: 5,
-    total: formatCurrency(99.00),
+    total: formatCurrency(99.0),
     date: "2024-01-12",
     status: "processing",
   },
@@ -47,21 +54,24 @@ const orders = [
     customer: "Sofia Davis",
     email: "sofia.davis@email.com",
     items: 1,
-    total: formatCurrency(39.00),
+    total: formatCurrency(39.0),
     date: "2024-01-11",
     status: "pending",
   },
-]
+];
 
 const statusColors = {
   completed: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400",
-  pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-  processing: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+  pending:
+    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+  processing:
+    "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
   cancelled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-}
+};
 
 export function Orders() {
-  usePageTitle("Orders")
+  usePageTitle("Orders");
+  const { hasPermission } = usePermissions();
 
   return (
     <div className="space-y-8">
@@ -73,10 +83,12 @@ export function Orders() {
             View and manage all customer orders.
           </p>
         </div>
-        <Button variant="outline">
-          <Download className="mr-2 h-4 w-4" />
-          Export
-        </Button>
+        {hasPermission("order.read") && (
+          <Button variant="outline">
+            <Download className="mr-2 h-4 w-4" />
+            Export
+          </Button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -121,7 +133,7 @@ export function Orders() {
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(2475.00)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(2475.0)}</div>
             <p className="text-xs text-muted-foreground">Total revenue</p>
           </CardContent>
         </Card>
@@ -131,7 +143,9 @@ export function Orders() {
       <Card>
         <CardHeader>
           <CardTitle>Search Orders</CardTitle>
-          <CardDescription>Find orders by ID, customer, or email</CardDescription>
+          <CardDescription>
+            Find orders by ID, customer, or email
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="relative">
@@ -174,7 +188,9 @@ export function Orders() {
                     <td className="p-4">
                       <div>
                         <p className="font-medium">{order.customer}</p>
-                        <p className="text-sm text-muted-foreground">{order.email}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {order.email}
+                        </p>
                       </div>
                     </td>
                     <td className="p-4">{order.items}</td>
@@ -182,7 +198,11 @@ export function Orders() {
                     <td className="p-4">{order.date}</td>
                     <td className="p-4">
                       <span
-                        className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${statusColors[order.status as keyof typeof statusColors]}`}
+                        className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+                          statusColors[
+                            order.status as keyof typeof statusColors
+                          ]
+                        }`}
                       >
                         {order.status}
                       </span>
@@ -202,6 +222,5 @@ export function Orders() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
-

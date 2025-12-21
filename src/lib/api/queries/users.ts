@@ -29,6 +29,13 @@ export const userMutations = {
     })
     return response.data.user
   },
+  updateUserAccess: async ({ id, role, permissions }: { id: number, role: string, permissions: string[] }) => {
+    const response = await api.patch<{ user: User }>(`/users/${id}/access`, {
+      role,
+      permissions
+    })
+    return response.data.user
+  },
   rejectUser: async (id: number) => {
     const response = await api.patch<{ user: User }>(`/users/${id}/reject`)
     return response.data.user

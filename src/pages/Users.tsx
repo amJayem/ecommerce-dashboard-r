@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "react-hot-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { userQueries, userMutations } from "@/lib/api/queries/users";
 import { UserTable } from "@/components/users/UserTable";
@@ -11,16 +12,35 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { usePermissions } from "@/hooks/usePermissions";
+import { ShieldAlert } from "lucide-react";
 
 export function Users() {
-  const [filter, setFilter] = useState("PENDING");
+  const { hasPermission } = usePermissions();
+  const [filter, setFilter] = useState("ALL");
   const [isManageAccessOpen, setIsManageAccessOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<{
     id: number;
     name: string;
+    role?: string;
+    permissions?: string[];
   } | null>(null);
 
   const queryClient = useQueryClient();
+
+  if (!hasPermission("user.read") && !hasPermission("user.manage")) {
+    return (
+      <div className="flex h-[450px] flex-col items-center justify-center space-y-4 text-center">
+        <ShieldAlert className="h-12 w-12 text-destructive" />
+        <div className="space-y-2">
+          <h3 className="text-2xl font-bold">Access Denied</h3>
+          <p className="text-muted-foreground">
+            You do not have the required permissions to view the user list.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const { data: usersResponse, isLoading } = useQuery({
     queryKey: ["users", filter],
@@ -36,10 +56,21 @@ export function Users() {
     mutationFn: userMutations.approveUser,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
-      alert("User approved successfully");
+      toast.success("User approved successfully");
     },
     onError: (error: any) => {
-      alert(`Error: ${error.message || "Failed to approve user"}`);
+      toast.error(`Error: ${error.message || "Failed to approve user"}`);
+    },
+  });
+
+  const updateAccessMutation = useMutation({
+    mutationFn: userMutations.updateUserAccess,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      toast.success("User access updated successfully");
+    },
+    onError: (error: any) => {
+      toast.error(`Error: ${error.message || "Failed to update access"}`);
     },
   });
 
@@ -47,10 +78,10 @@ export function Users() {
     mutationFn: userMutations.rejectUser,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
-      alert("User rejected successfully");
+      toast.success("User rejected successfully");
     },
     onError: (error: any) => {
-      alert(`Error: ${error.message || "Failed to reject user"}`);
+      toast.error(`Error: ${error.message || "Failed to reject user"}`);
     },
   });
 
@@ -58,25 +89,39 @@ export function Users() {
     mutationFn: userMutations.suspendUser,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
-      alert("User suspended successfully");
+      toast.success("User suspended successfully");
     },
     onError: (error: any) => {
-      alert(`Error: ${error.message || "Failed to suspend user"}`);
+      toast.error(`Error: ${error.message || "Failed to suspend user"}`);
     },
   });
 
-  const handleManageAccess = (id: number, name: string) => {
-    setSelectedUser({ id, name });
+  const handleManageAccess = (
+    id: number,
+    name: string,
+    role?: string,
+    permissions?: string[]
+  ) => {
+    setSelectedUser({ id, name, role, permissions });
     setIsManageAccessOpen(true);
   };
 
   const handleApproveConfirm = async (role: string, permissions: string[]) => {
     if (selectedUser) {
-      await approveMutation.mutateAsync({
-        id: selectedUser.id,
-        role,
-        permissions,
-      });
+      // If the user already has a role, it's an update, not an initial approval
+      if (selectedUser.role) {
+        await updateAccessMutation.mutateAsync({
+          id: selectedUser.id,
+          role,
+          permissions,
+        });
+      } else {
+        await approveMutation.mutateAsync({
+          id: selectedUser.id,
+          role,
+          permissions,
+        });
+      }
     }
   };
 
@@ -139,6 +184,8 @@ export function Users() {
           isOpen={isManageAccessOpen}
           onClose={() => setIsManageAccessOpen(false)}
           userName={selectedUser.name}
+          initialRole={selectedUser.role}
+          initialPermissions={selectedUser.permissions}
           onConfirm={handleApproveConfirm}
         />
       )}

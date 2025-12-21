@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, type ReactNode } from "react";
 import { authQueries, authMutations, type User } from "@/lib/api/queries/auth";
 import axios from "axios";
 import { AuthContext } from "./AuthContext.types";
+import { toast } from "react-hot-toast";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -99,8 +100,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const message = customEvent.detail || "Access restricted";
       // Force logout by clearing user state
       setUser(null);
-      // Ideally show a nice modal, for now using alert as requested or standard behavior
-      alert(message);
+      // Ideally show a nice modal, for now using toast as requested
+      toast.error(message);
       // Redirect happens automatically if ProtectedRoute checks user state
       // or we can force navigate if needed, but state update usually triggers re-render
     };

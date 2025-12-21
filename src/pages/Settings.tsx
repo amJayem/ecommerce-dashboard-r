@@ -1,13 +1,21 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Separator } from "@/components/ui/separator"
-import { Save, Bell, Lock, User, Store } from "lucide-react"
-import { usePageTitle } from "@/hooks/use-page-title"
-import { CURRENCY } from "@/lib/constants"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import { Save, Bell, Lock, User, Store } from "lucide-react";
+import { usePageTitle } from "@/hooks/use-page-title";
+import { CURRENCY } from "@/lib/constants";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export function Settings() {
-  usePageTitle("Settings")
+  usePageTitle("Settings");
+  const { hasPermission } = usePermissions();
   return (
     <div className="space-y-8">
       {/* Page Header */}
@@ -64,44 +72,46 @@ export function Settings() {
       </Card>
 
       {/* Store Settings */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Store className="h-5 w-5" />
-            <CardTitle>Store Settings</CardTitle>
-          </div>
-          <CardDescription>
-            Configure your store information and preferences
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <label htmlFor="storeName" className="text-sm font-medium">
-              Store Name
-            </label>
-            <Input id="storeName" defaultValue="My eCommerce Store" />
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="storeDescription" className="text-sm font-medium">
-              Store Description
-            </label>
-            <Input
-              id="storeDescription"
-              defaultValue="Your one-stop shop for quality products"
-            />
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="currency" className="text-sm font-medium">
-              Currency
-            </label>
-            <Input id="currency" defaultValue={CURRENCY.code} />
-          </div>
-          <Button>
-            <Save className="mr-2 h-4 w-4" />
-            Save Changes
-          </Button>
-        </CardContent>
-      </Card>
+      {hasPermission("admin.action") && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Store className="h-5 w-5" />
+              <CardTitle>Store Settings</CardTitle>
+            </div>
+            <CardDescription>
+              Configure your store information and preferences
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="storeName" className="text-sm font-medium">
+                Store Name
+              </label>
+              <Input id="storeName" defaultValue="My eCommerce Store" />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="storeDescription" className="text-sm font-medium">
+                Store Description
+              </label>
+              <Input
+                id="storeDescription"
+                defaultValue="Your one-stop shop for quality products"
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="currency" className="text-sm font-medium">
+                Currency
+              </label>
+              <Input id="currency" defaultValue={CURRENCY.code} />
+            </div>
+            <Button>
+              <Save className="mr-2 h-4 w-4" />
+              Save Changes
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Security Settings */}
       <Card>
@@ -190,6 +200,5 @@ export function Settings() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
-

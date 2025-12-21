@@ -7,7 +7,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, CheckCircle, XCircle, Ban } from "lucide-react";
+import {
+  MoreHorizontal,
+  CheckCircle,
+  XCircle,
+  Ban,
+  Settings2,
+} from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
@@ -16,7 +22,12 @@ interface UserActionsProps {
   userId: number;
   userName: string;
   status: string;
-  onManageAccess: (id: number, name: string) => void;
+  onManageAccess: (
+    id: number,
+    name: string,
+    role?: string,
+    permissions?: string[]
+  ) => void;
   onReject: (id: number) => Promise<void>;
   onSuspend: (id: number) => Promise<void>;
 }
@@ -73,12 +84,18 @@ export function UserActions({
         )}
 
         {hasPermission("user.manage") && status === "APPROVED" && (
-          <DropdownMenuItem
-            onClick={() => handleAction(() => onSuspend(userId))}
-          >
-            <Ban className="mr-2 h-4 w-4 text-red-600" />
-            Suspend
-          </DropdownMenuItem>
+          <>
+            <DropdownMenuItem onClick={() => onManageAccess(userId, userName)}>
+              <Settings2 className="mr-2 h-4 w-4" />
+              Manage Access
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => handleAction(() => onSuspend(userId))}
+            >
+              <Ban className="mr-2 h-4 w-4 text-red-600" />
+              Suspend
+            </DropdownMenuItem>
+          </>
         )}
 
         {/* Fallback if no actions available */}

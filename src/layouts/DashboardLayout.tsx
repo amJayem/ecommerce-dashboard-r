@@ -38,10 +38,30 @@ import { usePermissions } from "@/hooks/usePermissions";
 
 const initialNavigation = [
   { name: "Overview", href: "/", icon: LayoutDashboard },
-  { name: "Products", href: "/products", icon: Package },
-  { name: "Categories", href: "/categories", icon: Layers },
-  { name: "Orders", href: "/orders", icon: ShoppingCart },
-  { name: "Customers", href: "/customers", icon: Users },
+  {
+    name: "Products",
+    href: "/products",
+    icon: Package,
+    permission: "product.read",
+  },
+  {
+    name: "Categories",
+    href: "/categories",
+    icon: Layers,
+    permission: "category.read",
+  },
+  {
+    name: "Orders",
+    href: "/orders",
+    icon: ShoppingCart,
+    permission: "order.read",
+  },
+  {
+    name: "Customers",
+    href: "/customers",
+    icon: Users,
+    permission: "user.read",
+  },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
@@ -53,12 +73,24 @@ export function DashboardLayout() {
   const { user, logout } = useAuth();
   const { hasPermission } = usePermissions();
 
-  const navigation = [
-    ...initialNavigation,
-    ...(hasPermission("user.read")
-      ? [{ name: "Users", href: "/users", icon: Users }]
-      : []),
-  ];
+  const navigation = initialNavigation.filter((item) => {
+    if (!item.permission) return true;
+    return hasPermission(item.permission as any);
+  });
+
+  // Add Users link separately if they have user.read or user.manage
+  if (hasPermission("user.read") || hasPermission("user.manage")) {
+    const usersExists = navigation.some((n) => n.href === "/users");
+    if (!usersExists) {
+      // Find where to insert, usually after Customers or at the end
+      navigation.push({
+        name: "User Management",
+        href: "/users",
+        icon: Users,
+        permission: "user.read",
+      });
+    }
+  }
 
   const isActive = (href: string) => {
     if (href === "/") {

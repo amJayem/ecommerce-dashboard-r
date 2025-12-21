@@ -9,11 +9,17 @@ import {
 import type { User } from "@/lib/api/queries/auth";
 import { UserStatusBadge } from "./UserStatusBadge";
 import { UserActions } from "./UserActions";
+import { Badge } from "@/components/ui/badge";
 
 interface UserTableProps {
   users: User[];
   isLoading: boolean;
-  onManageAccess: (id: number, name: string) => void;
+  onManageAccess: (
+    id: number,
+    name: string,
+    role?: string,
+    permissions?: string[]
+  ) => void;
   onReject: (id: number) => Promise<void>;
   onSuspend: (id: number) => Promise<void>;
 }
@@ -49,6 +55,7 @@ export function UserTable({
             <TableHead>User</TableHead>
             <TableHead>Role</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Permissions</TableHead>
             <TableHead>Registered</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -74,6 +81,35 @@ export function UserTable({
                 />
               </TableCell>
               <TableCell>
+                {user.permissions && user.permissions.length > 0 ? (
+                  <div className="flex flex-wrap gap-1 max-w-[250px]">
+                    {user.permissions.slice(0, 3).map((p) => {
+                      const permissionName =
+                        typeof p === "string" ? p : (p as any)?.name;
+                      if (!permissionName || typeof permissionName !== "string")
+                        return null;
+
+                      return (
+                        <Badge
+                          key={permissionName}
+                          variant="outline"
+                          className="text-[10px] px-1.5 py-0 h-4 normal-case"
+                        >
+                          {permissionName.split(".").pop()?.replace(/_/g, " ")}
+                        </Badge>
+                      );
+                    })}
+                    {user.permissions.length > 3 && (
+                      <span className="text-[10px] text-muted-foreground font-medium">
+                        +{user.permissions.length - 3} more
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-xs text-muted-foreground">-</span>
+                )}
+              </TableCell>
+              <TableCell>
                 {new Date(user.createdAt).toLocaleDateString()}
               </TableCell>
               <TableCell className="text-right">
@@ -84,7 +120,15 @@ export function UserTable({
                     (user as any).status ||
                     (user.isVerified ? "APPROVED" : "PENDING")
                   }
-                  onManageAccess={onManageAccess}
+                  onManageAccess={(id, name) => {
+                    const permissionNames =
+                      user.permissionNames ||
+                      user.permissions?.map((p) =>
+                        typeof p === "string" ? p : p.name
+                      ) ||
+                      [];
+                    onManageAccess(id, name, user.role, permissionNames);
+                  }}
                   onReject={onReject}
                   onSuspend={onSuspend}
                 />
