@@ -70,7 +70,10 @@ const productFormSchema = z.object({
     .string()
     .min(1, "Short description is required")
     .max(500, "Short description is too long"),
-  description: z.string().max(5000, "Description is too long").optional(),
+  description: z
+    .string()
+    .min(1, "Full description is required")
+    .max(5000, "Description is too long"),
   price: z.coerce
     .number()
     .min(0, "Price must be positive")
@@ -377,8 +380,8 @@ export function ProductForm() {
         name: data.name.trim(),
         slug: data.slug.trim(),
         shortDescription: data.shortDescription.trim(),
-        description: data.description?.trim() || undefined,
-        detailedDescription: data.description?.trim() || undefined,
+        description: data.description.trim(),
+        detailedDescription: data.description.trim(),
         price: data.price,
         originalPrice: parseNumber(data.originalPrice),
         stock: data.stock,
@@ -558,10 +561,7 @@ export function ProductForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel htmlFor="description">
-                        Full Description{" "}
-                        <span className="text-muted-foreground">
-                          (optional)
-                        </span>
+                        Full Description
                       </FormLabel>
                       <FormControl>
                         <Textarea

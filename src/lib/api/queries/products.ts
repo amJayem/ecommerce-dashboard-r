@@ -83,7 +83,7 @@ export interface CreateProductRequest {
   slug: string;
   description?: string;
   shortDescription: string;
-  detailedDescription?: string;
+  detailedDescription: string;
   price: number;
   originalPrice?: number;
   discount?: number;
