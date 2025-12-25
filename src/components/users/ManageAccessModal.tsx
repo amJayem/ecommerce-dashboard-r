@@ -1,6 +1,4 @@
 import { useState, useMemo, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { userQueries, type Permission } from "@/lib/api/queries/users";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -16,6 +14,98 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Settings2 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { cn } from "@/lib/utils";
+
+const DEFAULT_PERMISSIONS = [
+  // Order permissions
+  {
+    name: "order.read",
+    description: "View orders",
+    category: "order",
+  },
+  {
+    name: "order.create",
+    description: "Create orders",
+    category: "order",
+  },
+  {
+    name: "order.update",
+    description: "Update order status and details",
+    category: "order",
+  },
+  {
+    name: "order.delete",
+    description: "Delete orders",
+    category: "order",
+  },
+
+  // Product permissions
+  {
+    name: "product.read",
+    description: "View products",
+    category: "product",
+  },
+  {
+    name: "product.create",
+    description: "Create new products",
+    category: "product",
+  },
+  {
+    name: "product.update",
+    description: "Update product details",
+    category: "product",
+  },
+  {
+    name: "product.delete",
+    description: "Delete products",
+    category: "product",
+  },
+
+  // Category permissions
+  {
+    name: "category.read",
+    description: "View categories",
+    category: "category",
+  },
+  {
+    name: "category.create",
+    description: "Create new categories",
+    category: "category",
+  },
+  {
+    name: "category.update",
+    description: "Update category details",
+    category: "category",
+  },
+  {
+    name: "category.delete",
+    description: "Delete categories",
+    category: "category",
+  },
+
+  // User permissions
+  {
+    name: "user.read",
+    description: "View users and user lists",
+    category: "user",
+  },
+  {
+    name: "user.approve",
+    description: "Approve or reject pending users",
+    category: "user",
+  },
+  {
+    name: "user.manage",
+    description: "Manage users (suspend, update roles, etc.)",
+    category: "user",
+  },
+
+  // Admin permissions
+  {
+    name: "admin.action",
+    description: "Perform general administrative actions",
+    category: "admin",
+  },
+];
 
 interface ManageAccessModalProps {
   isOpen: boolean;
@@ -53,23 +143,16 @@ export function ManageAccessModal({
     }
   }, [isOpen, initialRole, initialPermissions]);
 
-  const { data: permissions, isLoading } = useQuery({
-    queryKey: ["permissions"],
-    queryFn: userQueries.getPermissions,
-    enabled: isOpen,
-  });
-
   const groupedPermissions = useMemo(() => {
-    if (!permissions) return {};
-    return permissions.reduce((acc, permission) => {
+    return DEFAULT_PERMISSIONS.reduce((acc, permission) => {
       const category = permission.category || "General";
       if (!acc[category]) {
         acc[category] = [];
       }
       acc[category].push(permission);
       return acc;
-    }, {} as Record<string, Permission[]>);
-  }, [permissions]);
+    }, {} as Record<string, typeof DEFAULT_PERMISSIONS>);
+  }, []);
 
   // Helper to check if a read permission is required by other selected permissions
   const isReadRequired = (permissionName: string) => {
@@ -200,87 +283,79 @@ export function ManageAccessModal({
               </span>
             </div>
 
-            {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {Object.entries(groupedPermissions).map(([category, items]) => (
-                  <div key={category} className="space-y-3">
-                    <div className="flex items-center justify-between border-b pb-1">
-                      <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
-                        {category}
-                      </h4>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-auto p-0 text-xs text-primary hover:bg-transparent"
-                        onClick={() => {
-                          const allSelected = items.every((p) =>
-                            selectedPermissions.includes(p.name)
-                          );
-                          handleSelectAllInCategory(category, !allSelected);
-                        }}
-                      >
-                        {items.every((p) =>
+            <div className="space-y-6">
+              {Object.entries(groupedPermissions).map(([category, items]) => (
+                <div key={category} className="space-y-3">
+                  <div className="flex items-center justify-between border-b pb-1">
+                    <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                      {category}
+                    </h4>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto p-0 text-xs text-primary hover:bg-transparent"
+                      onClick={() => {
+                        const allSelected = items.every((p) =>
                           selectedPermissions.includes(p.name)
-                        )
-                          ? "Deselect All"
-                          : "Select All"}
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {items.map((permission) => {
-                        const isRequired = isReadRequired(permission.name);
-                        return (
-                          <div
-                            key={permission.id}
-                            className="flex items-start space-x-3 space-y-0"
-                          >
-                            <Checkbox
-                              id={`perm-${permission.id}`}
-                              checked={selectedPermissions.includes(
-                                permission.name
-                              )}
-                              disabled={isRequired}
-                              onCheckedChange={() =>
-                                handleTogglePermission(permission.name)
-                              }
-                            />
-                            <div className="grid gap-1.5 leading-none">
-                              <Label
-                                htmlFor={`perm-${permission.id}`}
-                                className={cn(
-                                  "text-sm font-medium leading-none cursor-pointer",
-                                  isRequired &&
-                                    "text-muted-foreground cursor-default"
-                                )}
-                              >
-                                {permission.name
-                                  .split(".")
-                                  .pop()
-                                  ?.replace(/_/g, " ")}
-                                {isRequired && (
-                                  <span className="ml-1 text-[10px] text-blue-500 font-normal">
-                                    (Required for actions)
-                                  </span>
-                                )}
-                              </Label>
-                              {permission.description && (
-                                <p className="text-xs text-muted-foreground">
-                                  {permission.description}
-                                </p>
-                              )}
-                            </div>
-                          </div>
                         );
-                      })}
-                    </div>
+                        handleSelectAllInCategory(category, !allSelected);
+                      }}
+                    >
+                      {items.every((p) => selectedPermissions.includes(p.name))
+                        ? "Deselect All"
+                        : "Select All"}
+                    </Button>
                   </div>
-                ))}
-              </div>
-            )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {items.map((permission) => {
+                      const isRequired = isReadRequired(permission.name);
+                      return (
+                        <div
+                          key={permission.name}
+                          className="flex items-start space-x-3 space-y-0"
+                        >
+                          <Checkbox
+                            id={`perm-${permission.name}`}
+                            checked={selectedPermissions.includes(
+                              permission.name
+                            )}
+                            disabled={isRequired}
+                            onCheckedChange={() =>
+                              handleTogglePermission(permission.name)
+                            }
+                          />
+                          <div className="grid gap-1.5 leading-none">
+                            <Label
+                              htmlFor={`perm-${permission.name}`}
+                              className={cn(
+                                "text-sm font-medium leading-none cursor-pointer",
+                                isRequired &&
+                                  "text-muted-foreground cursor-default"
+                              )}
+                            >
+                              {permission.name
+                                .split(".")
+                                .pop()
+                                ?.replace(/_/g, " ")}
+                              {isRequired && (
+                                <span className="ml-1 text-[10px] text-blue-500 font-normal">
+                                  (Required for actions)
+                                </span>
+                              )}
+                            </Label>
+                            {permission.description && (
+                              <p className="text-xs text-muted-foreground">
+                                {permission.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
