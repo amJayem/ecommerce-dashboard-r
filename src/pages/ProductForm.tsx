@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -29,6 +30,7 @@ import {
   useUpdateProduct,
   type CreateProductRequest,
 } from "@/hooks/useProducts";
+import { CURRENCY } from "@/lib/constants";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   AlertCircle,
@@ -36,6 +38,7 @@ import {
   Loader2,
   PackagePlus,
   Save,
+  X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
@@ -54,70 +57,84 @@ const unitOptions = [
   "ml",
 ] as const;
 
-const productFormSchema = z.object({
-  name: z
-    .string()
-    .min(1, "Product name is required")
-    .max(255, "Name is too long"),
-  slug: z
-    .string()
-    .min(1, "Slug is required")
-    .regex(
-      /^[a-z0-9-]+$/,
-      "Slug must contain only lowercase letters, numbers, and hyphens"
-    ),
-  shortDescription: z
-    .string()
-    .min(1, "Short description is required")
-    .max(500, "Short description is too long"),
-  description: z
-    .string()
-    .min(1, "Full description is required")
-    .max(5000, "Description is too long"),
-  price: z.coerce
-    .number()
-    .min(0, "Price must be positive")
-    .finite("Price must be a valid number"),
-  originalPrice: z.coerce
-    .number()
-    .min(0, "Original price must be positive")
-    .finite("Original price must be a valid number")
-    .optional()
-    .nullable(),
-  stock: z.coerce
-    .number()
-    .int("Stock must be a whole number")
-    .min(0, "Stock cannot be negative"),
-  lowStockThreshold: z.coerce
-    .number()
-    .int("Threshold must be a whole number")
-    .min(0, "Threshold cannot be negative")
-    .optional()
-    .nullable(),
-  categoryId: z.coerce
-    .number()
-    .int("Category is required")
-    .positive("Please select a category")
-    .optional()
-    .nullable(),
-  status: z.enum(["draft", "published", "archived"]).default("draft"),
-  featured: z.boolean().default(false),
-  isActive: z.boolean().default(true),
-  unit: z.enum(unitOptions).default("pcs"),
-  weight: z.coerce
-    .number()
-    .min(0, "Weight must be positive")
-    .finite("Weight must be a valid number")
-    .optional()
-    .nullable(),
-  coverImage: z
-    .string()
-    .url("Cover image must be a valid URL")
-    .optional()
-    .or(z.literal("")),
-  images: z.string().optional(),
-  tags: z.string().optional(),
-});
+const productFormSchema = z
+  .object({
+    name: z
+      .string()
+      .min(1, "Product Name is required")
+      .max(255, "Name is too long"),
+    slug: z
+      .string()
+      .min(1, "URL Slug is required")
+      .regex(
+        /^[a-z0-9-]+$/,
+        "URL Slug can only contain lowercase letters, numbers, and hyphens"
+      ),
+    shortDescription: z
+      .string()
+      .max(500, "Short description is too long")
+      .optional(),
+    description: z.string().max(5000, "Description is too long").optional(),
+    price: z.coerce
+      .number()
+      .min(0, "Price must be a positive number")
+      .finite("Price must be a valid number"),
+    originalPrice: z.coerce
+      .number()
+      .min(0, "Original price must be positive")
+      .finite("Original price must be a valid number")
+      .optional()
+      .nullable(),
+    stock: z.coerce
+      .number()
+      .int("Stock must be a whole number")
+      .min(0, "Stock Quantity must be 0 or greater"),
+    lowStockThreshold: z.coerce
+      .number()
+      .int("Threshold must be a whole number")
+      .min(0, "Threshold cannot be negative")
+      .optional()
+      .nullable(),
+    categoryId: z.coerce
+      .number()
+      .int("Category is required")
+      .positive("Please select a category")
+      .optional()
+      .nullable(),
+    status: z.enum(["draft", "published", "archived"]).default("draft"),
+    featured: z.boolean().default(false),
+    isActive: z.boolean().default(true),
+    unit: z.enum(unitOptions).default("pcs"),
+    weight: z.coerce
+      .number()
+      .min(0, "Weight must be positive")
+      .finite("Weight must be a valid number")
+      .optional()
+      .nullable(),
+    coverImage: z
+      .string()
+      .url("Cover image must be a valid URL")
+      .optional()
+      .or(z.literal("")),
+    images: z.string().optional(),
+    tags: z.string().optional(),
+  })
+  .refine(
+    (data) => {
+      if (
+        data.originalPrice !== null &&
+        data.originalPrice !== undefined &&
+        data.originalPrice < data.price
+      ) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "Original Price cannot be less than Sale Price",
+      path: ["originalPrice"],
+    }
+  );
 
 type ProductFormValues = z.infer<typeof productFormSchema>;
 
@@ -260,7 +277,6 @@ export function ProductForm() {
 
   const [pageError, setPageError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [coverImageError, setCoverImageError] = useState(false);
 
   // React Query hooks
   const { data: product, isLoading: isLoadingProduct } = useProduct(
@@ -300,15 +316,6 @@ export function ProductForm() {
       tags: "",
     },
   });
-
-  const imagesValue = form.watch("images");
-  const additionalImages = useMemo(() => {
-    const imagesStr = imagesValue || "";
-    return imagesStr
-      .split(",")
-      .map((url) => url.trim())
-      .filter(Boolean);
-  }, [imagesValue]);
 
   const categoryDropdownOptions = useMemo(() => {
     return categories
@@ -351,10 +358,19 @@ export function ProductForm() {
     }
   }, [product, isEditMode, form]);
 
-  const coverImageValue = form.watch("coverImage");
+  // Auto-slug logic
+  const [isSlugEdited, setIsSlugEdited] = useState(false);
+  const productName = form.watch("name");
+
   useEffect(() => {
-    setCoverImageError(false);
-  }, [coverImageValue]);
+    if (!isSlugEdited && productName && !isEditMode) {
+      const slug = productName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)+/g, "");
+      form.setValue("slug", slug, { shouldValidate: true });
+    }
+  }, [productName, isSlugEdited, isEditMode, form]);
 
   const onSubmit: SubmitHandler<ProductFormValues> = async (data) => {
     setPageError(null);
@@ -379,9 +395,9 @@ export function ProductForm() {
       const payload: CreateProductRequest = {
         name: data.name.trim(),
         slug: data.slug.trim(),
-        shortDescription: data.shortDescription.trim(),
-        description: data.description.trim(),
-        detailedDescription: data.description.trim(),
+        shortDescription: data.shortDescription?.trim() ?? "",
+        description: data.description?.trim() ?? "",
+        detailedDescription: data.description?.trim() ?? "",
         price: data.price,
         originalPrice: parseNumber(data.originalPrice),
         stock: data.stock,
@@ -419,8 +435,6 @@ export function ProductForm() {
   if (isEditMode && isLoadingProduct) {
     return <ProductFormSkeleton />;
   }
-
-  const coverImageUrl = coverImageValue;
 
   return (
     <div className="space-y-8">
@@ -481,241 +495,25 @@ export function ProductForm() {
                 title="Basic Information"
                 description="Essential product details that appear in listings and search results."
               >
-                <div className="grid gap-6 md:grid-cols-2">
+                {/* Row 1: Product Name (70%) | Category (30%) */}
+                <div className="grid gap-6 grid-cols-1 md:grid-cols-10">
                   <FormField
                     // @ts-expect-error - Type inference issue with z.coerce, but works at runtime
                     control={form.control}
                     name="name"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel htmlFor="name">Product Name</FormLabel>
+                      <FormItem className="col-span-1 md:col-span-7">
+                        <FormLabel htmlFor="name">
+                          Product Name{" "}
+                          <span className="text-destructive">*</span>
+                        </FormLabel>
                         <FormControl>
                           <Input
                             id="name"
-                            placeholder="Organic Green Tea"
+                            placeholder="Enter product name"
                             {...field}
                           />
                         </FormControl>
-                        <FormDescription>
-                          The name of your product as it appears to customers.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    // @ts-expect-error - Type inference issue with z.coerce, but works at runtime
-                    control={form.control}
-                    name="slug"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel htmlFor="slug">URL Slug</FormLabel>
-                        <FormControl>
-                          <Input
-                            id="slug"
-                            placeholder="organic-green-tea"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          A URL-friendly version of the product name (lowercase,
-                          hyphens only).
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  // @ts-expect-error - Type inference issue with z.coerce, but works at runtime
-                  control={form.control}
-                  name="shortDescription"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel htmlFor="shortDescription">
-                        Short Description
-                      </FormLabel>
-                      <FormControl>
-                        <Textarea
-                          id="shortDescription"
-                          placeholder="A premium organic tea blend with antioxidant properties..."
-                          className="min-h-[100px]"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        A brief summary that appears in product listings and
-                        search results (max 500 characters).
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  // @ts-expect-error - Type inference issue with z.coerce, but works at runtime
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel htmlFor="description">
-                        Full Description
-                      </FormLabel>
-                      <FormControl>
-                        <Textarea
-                          id="description"
-                          placeholder="Add detailed information about features, ingredients, usage instructions, and more..."
-                          className="min-h-[160px]"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Comprehensive product details, features, and
-                        specifications (max 5000 characters).
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </FormSection>
-
-              <FormSection
-                title="Pricing & Inventory"
-                description="Set product pricing and manage stock levels."
-              >
-                <div className="grid gap-6 md:grid-cols-2">
-                  <FormField
-                    // @ts-expect-error - Type inference issue with z.coerce, but works at runtime
-                    control={form.control}
-                    name="price"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel htmlFor="price">Price</FormLabel>
-                        <FormControl>
-                          <Input
-                            id="price"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder="29.99"
-                            {...field}
-                            onChange={(e) =>
-                              field.onChange(
-                                e.target.value === "" ? 0 : e.target.value
-                              )
-                            }
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          The current selling price of the product.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    // @ts-expect-error - Type inference issue with z.coerce, but works at runtime
-                    control={form.control}
-                    name="originalPrice"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel htmlFor="originalPrice">
-                          Original Price{" "}
-                          <span className="text-muted-foreground">
-                            (optional)
-                          </span>
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            id="originalPrice"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder="39.99"
-                            {...field}
-                            value={field.value ?? ""}
-                            onChange={(e) =>
-                              field.onChange(
-                                e.target.value === "" ? null : e.target.value
-                              )
-                            }
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          The original price before discount (for showing
-                          savings).
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid gap-6 md:grid-cols-3">
-                  <FormField
-                    // @ts-expect-error - Type inference issue with z.coerce, but works at runtime
-                    control={form.control}
-                    name="stock"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel htmlFor="stock">Stock Quantity</FormLabel>
-                        <FormControl>
-                          <Input
-                            id="stock"
-                            type="number"
-                            min="0"
-                            step="1"
-                            placeholder="120"
-                            {...field}
-                            onChange={(e) =>
-                              field.onChange(
-                                e.target.value === "" ? 0 : e.target.value
-                              )
-                            }
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Current available inventory.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    // @ts-expect-error - Type inference issue with z.coerce, but works at runtime
-                    control={form.control}
-                    name="lowStockThreshold"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel htmlFor="lowStockThreshold">
-                          Low Stock Threshold{" "}
-                          <span className="text-muted-foreground">
-                            (optional)
-                          </span>
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            id="lowStockThreshold"
-                            type="number"
-                            min="0"
-                            step="1"
-                            placeholder="20"
-                            {...field}
-                            value={field.value ?? ""}
-                            onChange={(e) =>
-                              field.onChange(
-                                e.target.value === "" ? null : e.target.value
-                              )
-                            }
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Alert when stock falls below this number.
-                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -726,13 +524,8 @@ export function ProductForm() {
                     control={form.control}
                     name="categoryId"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel htmlFor="categoryId">
-                          Category{" "}
-                          <span className="text-muted-foreground">
-                            (optional)
-                          </span>
-                        </FormLabel>
+                      <FormItem className="col-span-1 md:col-span-3">
+                        <FormLabel htmlFor="categoryId">Category</FormLabel>
                         <FormControl>
                           {categoriesErrorMessage ? (
                             <Input
@@ -763,8 +556,8 @@ export function ProductForm() {
                             >
                               <option value="">
                                 {categoriesLoading
-                                  ? "Loading categories..."
-                                  : "Select a category"}
+                                  ? "Loading..."
+                                  : "Select Category"}
                               </option>
                               {categoryDropdownOptions.map((option) => (
                                 <option key={option.id} value={option.id}>
@@ -774,17 +567,268 @@ export function ProductForm() {
                             </Select>
                           )}
                         </FormControl>
-                        {categoriesErrorMessage && (
-                          <FormDescription className="text-destructive">
-                            {categoriesErrorMessage}. Enter category ID
-                            manually.
-                          </FormDescription>
-                        )}
-                        {!categoriesErrorMessage && (
-                          <FormDescription>
-                            The category this product belongs to.
-                          </FormDescription>
-                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Row 2: URL Slug */}
+                <FormField
+                  // @ts-expect-error - Type inference issue with z.coerce, but works at runtime
+                  control={form.control}
+                  name="slug"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel htmlFor="slug">
+                        URL Slug{" "}
+                        <span className="text-muted-foreground">
+                          (Auto-generated)
+                        </span>
+                      </FormLabel>
+                      <FormControl>
+                        <div className="flex gap-2">
+                          <Input
+                            id="slug"
+                            placeholder="product-url-slug"
+                            {...field}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              setIsSlugEdited(true);
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => {
+                              setIsSlugEdited(false);
+                              const name = form.getValues("name");
+                              const slug = name
+                                .toLowerCase()
+                                .replace(/[^a-z0-9]+/g, "-")
+                                .replace(/(^-|-$)+/g, "");
+                              form.setValue("slug", slug, {
+                                shouldValidate: true,
+                              });
+                            }}
+                            title="Regenerate from Name"
+                          >
+                            <ArrowLeft className="h-4 w-4 rotate-180" />{" "}
+                            {/* Reuse ArrowLeft as a 'Refresh' icon proxy or verify if RefreshCw exists */}
+                            <span className="sr-only">Generate</span>
+                          </Button>
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        Unique URL identifier for the product.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Row 3: Short Description */}
+                <FormField
+                  // @ts-expect-error - Type inference issue with z.coerce, but works at runtime
+                  control={form.control}
+                  name="shortDescription"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel htmlFor="shortDescription">
+                        Short Description
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea
+                          id="shortDescription"
+                          placeholder="Enter a brief summary..."
+                          className="min-h-[80px]"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Row 4: Full Description */}
+                <FormField
+                  // @ts-expect-error - Type inference issue with z.coerce, but works at runtime
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel htmlFor="description">
+                        Full Description
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea
+                          id="description"
+                          placeholder="Enter detailed information..."
+                          className="min-h-[160px]"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </FormSection>
+
+              <FormSection
+                title="Pricing & Inventory"
+                description="Set product pricing and manage stock levels."
+              >
+                {/* Row 5: Price (20%) | Original Price (20%) | Stock (20%) | Low Stock (20%) | Unit (20%) */}
+                <div className="grid gap-4 grid-cols-2 md:grid-cols-5">
+                  <FormField
+                    // @ts-expect-error - Type inference issue with z.coerce, but works at runtime
+                    control={form.control}
+                    name="price"
+                    render={({ field }) => (
+                      <FormItem className="col-span-1">
+                        <FormLabel htmlFor="price">
+                          Price <span className="text-destructive">*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-sans">
+                              {CURRENCY.symbol}
+                            </span>
+                            <Input
+                              id="price"
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="0.00"
+                              className="pl-8"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(
+                                  e.target.value === "" ? 0 : e.target.value
+                                )
+                              }
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    // @ts-expect-error - Type inference issue with z.coerce, but works at runtime
+                    control={form.control}
+                    name="originalPrice"
+                    render={({ field }) => (
+                      <FormItem className="col-span-1">
+                        <FormLabel htmlFor="originalPrice">
+                          Original Price
+                        </FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-sans">
+                              {CURRENCY.symbol}
+                            </span>
+                            <Input
+                              id="originalPrice"
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="0.00"
+                              className="pl-8"
+                              {...field}
+                              value={field.value ?? ""}
+                              onChange={(e) =>
+                                field.onChange(
+                                  e.target.value === "" ? null : e.target.value
+                                )
+                              }
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    // @ts-expect-error - Type inference issue with z.coerce, but works at runtime
+                    control={form.control}
+                    name="stock"
+                    render={({ field }) => (
+                      <FormItem className="col-span-1">
+                        <FormLabel htmlFor="stock">
+                          Stock <span className="text-destructive">*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            id="stock"
+                            type="number"
+                            min="0"
+                            step="1"
+                            placeholder="0"
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(
+                                e.target.value === "" ? 0 : e.target.value
+                              )
+                            }
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    // @ts-expect-error - Type inference issue with z.coerce, but works at runtime
+                    control={form.control}
+                    name="lowStockThreshold"
+                    render={({ field }) => (
+                      <FormItem className="col-span-1">
+                        <FormLabel htmlFor="lowStockThreshold">
+                          Low Stock
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            id="lowStockThreshold"
+                            type="number"
+                            min="0"
+                            step="1"
+                            placeholder="0"
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={(e) =>
+                              field.onChange(
+                                e.target.value === "" ? null : e.target.value
+                              )
+                            }
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    // @ts-expect-error - Type inference issue with z.coerce, but works at runtime
+                    control={form.control}
+                    name="unit"
+                    render={({ field }) => (
+                      <FormItem className="col-span-1">
+                        <FormLabel htmlFor="unit">Unit</FormLabel>
+                        <FormControl>
+                          <Select id="unit" {...field}>
+                            {unitOptions.map((option) => (
+                              <option key={option} value={option}>
+                                {option.toUpperCase()}
+                              </option>
+                            ))}
+                          </Select>
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -796,50 +840,22 @@ export function ProductForm() {
                 title="Product Details"
                 description="Additional specifications and metadata."
               >
-                <div className="grid gap-6 md:grid-cols-3">
-                  <FormField
-                    // @ts-expect-error - Type inference issue with z.coerce, but works at runtime
-                    control={form.control}
-                    name="unit"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel htmlFor="unit">Unit</FormLabel>
-                        <FormControl>
-                          <Select id="unit" {...field}>
-                            {unitOptions.map((option) => (
-                              <option key={option} value={option}>
-                                {option.toUpperCase()}
-                              </option>
-                            ))}
-                          </Select>
-                        </FormControl>
-                        <FormDescription>
-                          The unit of measurement for this product.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
+                {/* Row 6: Weight (40%) | Status (60%) */}
+                <div className="grid gap-6 grid-cols-1 md:grid-cols-5">
                   <FormField
                     // @ts-expect-error - Type inference issue with z.coerce, but works at runtime
                     control={form.control}
                     name="weight"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel htmlFor="weight">
-                          Weight{" "}
-                          <span className="text-muted-foreground">
-                            (optional)
-                          </span>
-                        </FormLabel>
+                      <FormItem className="col-span-1 md:col-span-2">
+                        <FormLabel htmlFor="weight">Weight</FormLabel>
                         <FormControl>
                           <Input
                             id="weight"
                             type="number"
                             step="0.01"
                             min="0"
-                            placeholder="0.5"
+                            placeholder="0.0"
                             {...field}
                             value={field.value ?? ""}
                             onChange={(e) =>
@@ -849,9 +865,6 @@ export function ProductForm() {
                             }
                           />
                         </FormControl>
-                        <FormDescription>
-                          Product weight for shipping calculations.
-                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -862,17 +875,19 @@ export function ProductForm() {
                     control={form.control}
                     name="status"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel htmlFor="status">Status</FormLabel>
+                      <FormItem className="col-span-1 md:col-span-3">
+                        <FormLabel htmlFor="status">
+                          Status <span className="text-destructive">*</span>
+                        </FormLabel>
                         <FormControl>
                           <Select id="status" {...field}>
-                            <option value="draft">Draft</option>
+                            <option value="draft">Draft (Not visible)</option>
                             <option value="published">Published</option>
                             <option value="archived">Archived</option>
                           </Select>
                         </FormControl>
                         <FormDescription>
-                          The publication status of this product.
+                          "Draft items are not visible to customers"
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -893,44 +908,64 @@ export function ProductForm() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel htmlFor="coverImage">
-                          Cover Image URL{" "}
-                          <span className="text-muted-foreground">
-                            (optional)
-                          </span>
+                          Cover Image URL
                         </FormLabel>
                         <FormControl>
-                          <Input
-                            id="coverImage"
-                            placeholder="https://example.com/image.jpg"
-                            {...field}
-                          />
-                        </FormControl>
-                        {coverImageUrl && !coverImageError && (
-                          <div className="mt-3 flex items-center gap-4 rounded-lg border border-dashed border-muted p-3">
-                            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-md border bg-muted">
-                              <img
-                                src={coverImageUrl}
-                                alt="Cover preview"
-                                className="h-full w-full object-cover"
-                                onError={() => setCoverImageError(true)}
-                                loading="lazy"
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-4">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() =>
+                                  document
+                                    .getElementById("cover-upload")
+                                    ?.click()
+                                }
+                              >
+                                <PackagePlus className="mr-2 h-4 w-4" />
+                                Upload Image
+                              </Button>
+                              <Input
+                                id="cover-upload"
+                                type="file"
+                                className="hidden"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const url = URL.createObjectURL(file);
+                                    field.onChange(url);
+                                  }
+                                }}
                               />
+                              <span className="text-sm text-muted-foreground">
+                                OR
+                              </span>
+                              <Input placeholder="Enter image URL" {...field} />
                             </div>
-                            <p className="text-xs text-muted-foreground break-all">
-                              {coverImageUrl}
-                            </p>
+                            {field.value && (
+                              <div className="relative aspect-video w-full overflow-hidden rounded-lg border bg-muted">
+                                <img
+                                  src={field.value}
+                                  alt="Cover preview"
+                                  className="h-full w-full object-cover"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="destructive"
+                                  size="icon"
+                                  className="absolute right-2 top-2 h-6 w-6"
+                                  onClick={() => field.onChange("")}
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            )}
                           </div>
-                        )}
-                        {coverImageError && coverImageUrl && (
-                          <FormDescription className="text-destructive">
-                            Unable to load preview. Please verify the image URL.
-                          </FormDescription>
-                        )}
-                        {!coverImageError && (
-                          <FormDescription>
-                            The main product image displayed in listings.
-                          </FormDescription>
-                        )}
+                        </FormControl>
+                        <FormDescription>
+                          The main product image displayed in listings.
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -943,38 +978,104 @@ export function ProductForm() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel htmlFor="images">
-                          Additional Images{" "}
-                          <span className="text-muted-foreground">
-                            (optional)
-                          </span>
+                          Additional Images
                         </FormLabel>
                         <FormControl>
-                          <Input
-                            id="images"
-                            placeholder="https://img1.jpg, https://img2.jpg"
-                            {...field}
-                          />
-                        </FormControl>
-                        {additionalImages.length > 0 && (
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {additionalImages.slice(0, 6).map((url, index) => (
-                              <div
-                                key={`${url}-${index}`}
-                                className="h-16 w-16 overflow-hidden rounded-md border bg-muted"
-                                title={url}
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-4">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() =>
+                                  document
+                                    .getElementById("images-upload")
+                                    ?.click()
+                                }
                               >
-                                <img
-                                  src={url}
-                                  alt={`Additional preview ${index + 1}`}
-                                  className="h-full w-full object-cover"
-                                  loading="lazy"
-                                />
+                                <PackagePlus className="mr-2 h-4 w-4" />
+                                Upload Images
+                              </Button>
+                              <Input
+                                id="images-upload"
+                                type="file"
+                                className="hidden"
+                                accept="image/*"
+                                multiple
+                                onChange={(e) => {
+                                  const files = Array.from(
+                                    e.target.files || []
+                                  );
+                                  if (files.length) {
+                                    const newUrls = files.map((file) =>
+                                      URL.createObjectURL(file)
+                                    );
+                                    const currentUrls = field.value
+                                      ? field.value
+                                          .split(",")
+                                          .map((u: string) => u.trim())
+                                          .filter(Boolean)
+                                      : [];
+                                    field.onChange(
+                                      [...currentUrls, ...newUrls].join(",")
+                                    );
+                                  }
+                                }}
+                              />
+                              <span className="text-sm text-muted-foreground">
+                                OR
+                              </span>
+                              <Input
+                                placeholder="Enter comma-separated URLs"
+                                {...field}
+                              />
+                            </div>
+                            {field.value && (
+                              <div className="grid grid-cols-3 gap-2">
+                                {field.value
+                                  .split(",")
+                                  .map((url: string, index: number) => {
+                                    const trimmed = url.trim();
+                                    if (!trimmed) return null;
+                                    return (
+                                      <div
+                                        key={index}
+                                        className="relative aspect-square w-full overflow-hidden rounded-lg border bg-muted"
+                                      >
+                                        <img
+                                          src={trimmed}
+                                          alt={`Preview ${index}`}
+                                          className="h-full w-full object-cover"
+                                        />
+                                        <Button
+                                          type="button"
+                                          variant="destructive"
+                                          size="icon"
+                                          className="absolute right-1 top-1 h-5 w-5"
+                                          onClick={() => {
+                                            const urls = (field.value || "")
+                                              .split(",")
+                                              .map((u: string) => u.trim())
+                                              .filter(Boolean);
+                                            const newUrls = urls
+                                              .filter(
+                                                (_: string, i: number) =>
+                                                  i !== index
+                                              )
+                                              .join(",");
+                                            field.onChange(newUrls);
+                                          }}
+                                        >
+                                          <X className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    );
+                                  })}
                               </div>
-                            ))}
+                            )}
                           </div>
-                        )}
+                        </FormControl>
                         <FormDescription>
-                          Comma-separated URLs for additional product images.
+                          Additional images for the product gallery.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -993,22 +1094,76 @@ export function ProductForm() {
                   name="tags"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel htmlFor="tags">
-                        Tags{" "}
-                        <span className="text-muted-foreground">
-                          (optional)
-                        </span>
-                      </FormLabel>
+                      <FormLabel htmlFor="tags">Tags</FormLabel>
                       <FormControl>
-                        <Input
-                          id="tags"
-                          placeholder="wellness, organic, tea"
-                          {...field}
-                        />
+                        <div className="flex flex-col gap-3">
+                          {field.value && field.value.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {field.value.split(",").map((tag, index) => {
+                                const trimmedTag = tag.trim();
+                                if (!trimmedTag) return null;
+                                return (
+                                  <Badge
+                                    key={`${trimmedTag}-${index}`}
+                                    variant="secondary"
+                                    className="px-2 py-1 text-sm bg-secondary/50 hover:bg-secondary/70 transition-colors"
+                                  >
+                                    {trimmedTag}
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-4 w-4 ml-1.5 p-0 hover:bg-transparent text-muted-foreground hover:text-foreground"
+                                      onClick={() => {
+                                        const currentTags =
+                                          field.value
+                                            ?.split(",")
+                                            .map((t) => t.trim())
+                                            .filter(Boolean) || [];
+                                        const newTags = currentTags
+                                          .filter((_, i) => i !== index)
+                                          .join(",");
+                                        field.onChange(newTags);
+                                      }}
+                                    >
+                                      <X className="h-3 w-3" />
+                                      <span className="sr-only">
+                                        Remove {trimmedTag}
+                                      </span>
+                                    </Button>
+                                  </Badge>
+                                );
+                              })}
+                            </div>
+                          )}
+                          <Input
+                            id="tags"
+                            placeholder="Enter comma-separated tags"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                const val = e.currentTarget.value.trim();
+                                if (val) {
+                                  const currentTags =
+                                    field.value
+                                      ?.split(",")
+                                      .map((t) => t.trim())
+                                      .filter(Boolean) || [];
+                                  if (!currentTags.includes(val)) {
+                                    const newTags = [...currentTags, val].join(
+                                      ","
+                                    );
+                                    field.onChange(newTags);
+                                  }
+                                  e.currentTarget.value = "";
+                                }
+                              }
+                            }}
+                          />
+                        </div>
                       </FormControl>
                       <FormDescription>
-                        Comma-separated tags for categorization and search
-                        (e.g., "wellness, organic, tea").
+                        Type a tag and press Enter to add it.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -1029,7 +1184,7 @@ export function ProductForm() {
                       <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                         <FormControl>
                           <Checkbox
-                            checked={field.value}
+                            checked={field.value ?? false}
                             onCheckedChange={field.onChange}
                           />
                         </FormControl>
@@ -1051,7 +1206,7 @@ export function ProductForm() {
                       <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                         <FormControl>
                           <Checkbox
-                            checked={field.value}
+                            checked={field.value ?? true}
                             onCheckedChange={field.onChange}
                           />
                         </FormControl>
@@ -1067,7 +1222,15 @@ export function ProductForm() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 pt-6">
+              <div className="flex items-center justify-end gap-3 pt-6">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate("/products")}
+                >
+                  Cancel
+                </Button>
+
                 <Button
                   type="submit"
                   disabled={
@@ -1087,13 +1250,6 @@ export function ProductForm() {
                       {isEditMode ? "Update Product" : "Create Product"}
                     </>
                   )}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => navigate("/products")}
-                >
-                  Cancel
                 </Button>
               </div>
             </form>
