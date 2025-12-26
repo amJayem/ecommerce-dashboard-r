@@ -35,11 +35,27 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   AlertCircle,
   ArrowLeft,
+  Check,
   Loader2,
   PackagePlus,
+  RefreshCw,
   Save,
   X,
 } from "lucide-react";
+
+const COMMON_TAGS = [
+  "New Arrival",
+  "Bestseller",
+  "Limited Edition",
+  "Sale",
+  "Eco-friendly",
+  "Handmade",
+  "Vintage",
+  "Premium",
+  "Bundle",
+  "Seasonal",
+];
+import { toast } from "react-hot-toast";
 import { useEffect, useMemo, useState } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
@@ -277,6 +293,7 @@ export function ProductForm() {
 
   const [pageError, setPageError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [submitAction, setSubmitAction] = useState<"stay" | "exit">("exit"); // Default to exit for Create logic usually, but we'll control it explicitly.
 
   // React Query hooks
   const { data: product, isLoading: isLoadingProduct } = useProduct(
@@ -286,6 +303,8 @@ export function ProductForm() {
     data: categories = [],
     isLoading: categoriesLoading,
     error: categoriesError,
+    refetch: refetchCategories,
+    isRefetching: isRefetchingCategories,
   } = useCategories();
   const createProductMutation = useCreateProduct();
   const updateProductMutation = useUpdateProduct();
@@ -372,6 +391,14 @@ export function ProductForm() {
     }
   }, [productName, isSlugEdited, isEditMode, form]);
 
+  // Featured Product Logic: Disable if status is Draft
+  const status = form.watch("status");
+  useEffect(() => {
+    if (status === "draft") {
+      form.setValue("featured", false);
+    }
+  }, [status, form]);
+
   const onSubmit: SubmitHandler<ProductFormValues> = async (data) => {
     setPageError(null);
     setSuccessMessage(null);
@@ -418,17 +445,21 @@ export function ProductForm() {
           id: Number(productId),
           ...payload,
         });
-        setSuccessMessage("Product updated successfully.");
+        toast.success("Product updated successfully");
+        if (submitAction === "exit") {
+          navigate(`/products`, { replace: true });
+        }
       } else {
         await createProductMutation.mutateAsync(payload);
-        setSuccessMessage("Product created successfully.");
+        toast.success("Product created successfully");
         navigate(`/products`, { replace: true });
         return;
       }
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to save product";
-      setPageError(message);
+      toast.error(message);
+      setPageError(message); // Keep for static error display if needed, or remove? Keeping for now as fallback.
     }
   };
 
@@ -487,6 +518,22 @@ export function ProductForm() {
             </div>
           )}
 
+          {Object.keys(form.formState.errors).length > 0 && (
+            <div className="mb-6 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-destructive">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <div>
+                <p className="font-semibold text-sm">
+                  Please correct the following errors:
+                </p>
+                <ul className="list-disc list-inside text-sm mt-1">
+                  {Object.values(form.formState.errors).map((error, index) => (
+                    <li key={index}>{error.message}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
           {/* @ts-expect-error - Form component type inference issue with react-hook-form, but works at runtime */}
           <Form {...form}>
             {/* @ts-expect-error - Type inference issue with z.coerce, but works at runtime */}
@@ -501,18 +548,23 @@ export function ProductForm() {
                     // @ts-expect-error - Type inference issue with z.coerce, but works at runtime
                     control={form.control}
                     name="name"
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                       <FormItem className="col-span-1 md:col-span-7">
                         <FormLabel htmlFor="name">
                           Product Name{" "}
                           <span className="text-destructive">*</span>
                         </FormLabel>
                         <FormControl>
-                          <Input
-                            id="name"
-                            placeholder="Enter product name"
-                            {...field}
-                          />
+                          <div className="relative">
+                            <Input
+                              id="name"
+                              placeholder="Enter product name"
+                              {...field}
+                            />
+                            {fieldState.isDirty && !fieldState.invalid && (
+                              <Check className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-500 pointer-events-none" />
+                            )}
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -525,7 +577,27 @@ export function ProductForm() {
                     name="categoryId"
                     render={({ field }) => (
                       <FormItem className="col-span-1 md:col-span-3">
-                        <FormLabel htmlFor="categoryId">Category</FormLabel>
+                        <div className="flex items-center justify-between">
+                          <FormLabel htmlFor="categoryId">Category</FormLabel>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                            onClick={() => refetchCategories()}
+                            disabled={
+                              categoriesLoading || isRefetchingCategories
+                            }
+                            title="Refresh Categories"
+                          >
+                            <RefreshCw
+                              className={`h-3 w-3 ${
+                                isRefetchingCategories ? "animate-spin" : ""
+                              }`}
+                            />
+                            <span className="sr-only">Refresh</span>
+                          </Button>
+                        </div>
                         <FormControl>
                           {categoriesErrorMessage ? (
                             <Input
@@ -647,6 +719,9 @@ export function ProductForm() {
                           value={field.value || ""}
                         />
                       </FormControl>
+                      <p className="text-xs text-muted-foreground text-right mt-1">
+                        {field.value?.length || 0}/500 characters
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -671,6 +746,9 @@ export function ProductForm() {
                           value={field.value || ""}
                         />
                       </FormControl>
+                      <p className="text-xs text-muted-foreground text-right mt-1">
+                        {field.value?.length || 0}/5000 characters
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -687,7 +765,7 @@ export function ProductForm() {
                     // @ts-expect-error - Type inference issue with z.coerce, but works at runtime
                     control={form.control}
                     name="price"
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                       <FormItem className="col-span-1">
                         <FormLabel htmlFor="price">
                           Price <span className="text-destructive">*</span>
@@ -705,12 +783,15 @@ export function ProductForm() {
                               placeholder="0.00"
                               className="pl-8"
                               {...field}
-                              onChange={(e) =>
-                                field.onChange(
-                                  e.target.value === "" ? 0 : e.target.value
-                                )
-                              }
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                field.onChange(value === "" ? 0 : value);
+                              }}
+                              value={field.value ?? ""}
                             />
+                            {fieldState.isDirty && !fieldState.invalid && (
+                              <Check className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-500 pointer-events-none" />
+                            )}
                           </div>
                         </FormControl>
                         <FormMessage />
@@ -771,11 +852,11 @@ export function ProductForm() {
                             step="1"
                             placeholder="0"
                             {...field}
-                            onChange={(e) =>
-                              field.onChange(
-                                e.target.value === "" ? 0 : e.target.value
-                              )
-                            }
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              field.onChange(value === "" ? 0 : value);
+                            }}
+                            value={field.value ?? ""}
                           />
                         </FormControl>
                         <FormMessage />
@@ -808,6 +889,17 @@ export function ProductForm() {
                             }
                           />
                         </FormControl>
+                        {field.value !== null &&
+                          field.value !== undefined &&
+                          form.watch("stock") <= field.value && (
+                            <p className="text-[0.8rem] font-medium text-amber-500 mt-1.5 flex items-center gap-1">
+                              <AlertCircle className="h-3 w-3" />
+                              Low stock warning
+                            </p>
+                          )}
+                        <FormDescription>
+                          Alert when stock falls below this level.
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -866,6 +958,9 @@ export function ProductForm() {
                           />
                         </FormControl>
                         <FormMessage />
+                        <FormDescription>
+                          Used to calculate shipping rates (enter in kilograms).
+                        </FormDescription>
                       </FormItem>
                     )}
                   />
@@ -887,7 +982,8 @@ export function ProductForm() {
                           </Select>
                         </FormControl>
                         <FormDescription>
-                          "Draft items are not visible to customers"
+                          Controls visibility: Draft (hidden), Published
+                          (visible), Archived (hidden but preserved).
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -1075,7 +1171,8 @@ export function ProductForm() {
                           </div>
                         </FormControl>
                         <FormDescription>
-                          Additional images for the product gallery.
+                          Additional images for the product gallery. You can
+                          upload files or paste direct URLs.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -1138,9 +1235,8 @@ export function ProductForm() {
                           )}
                           <Input
                             id="tags"
-                            placeholder="Enter comma-separated tags"
                             onKeyDown={(e) => {
-                              if (e.key === "Enter") {
+                              if (e.key === "Enter" || e.key === ",") {
                                 e.preventDefault();
                                 const val = e.currentTarget.value.trim();
                                 if (val) {
@@ -1149,17 +1245,47 @@ export function ProductForm() {
                                       ?.split(",")
                                       .map((t) => t.trim())
                                       .filter(Boolean) || [];
-                                  if (!currentTags.includes(val)) {
-                                    const newTags = [...currentTags, val].join(
-                                      ","
-                                    );
+
+                                  // Split input by comma in case user pasted a list or typed "tag1,tag2"
+                                  const newCandidates = val
+                                    .split(",")
+                                    .map((t) => t.trim())
+                                    .filter(Boolean);
+
+                                  const uniqueToAdd = newCandidates.filter(
+                                    (candidate) =>
+                                      !currentTags.some(
+                                        (existing) =>
+                                          existing.toLowerCase() ===
+                                          candidate.toLowerCase()
+                                      )
+                                  );
+
+                                  if (uniqueToAdd.length > 0) {
+                                    const newTags = [
+                                      ...currentTags,
+                                      ...uniqueToAdd,
+                                    ].join(",");
                                     field.onChange(newTags);
                                   }
+
+                                  if (
+                                    uniqueToAdd.length < newCandidates.length
+                                  ) {
+                                    toast.error("Duplicate tags were skipped");
+                                  }
+
                                   e.currentTarget.value = "";
                                 }
                               }
                             }}
+                            list="common-tags"
                           />
+                          <datalist id="common-tags">
+                            {COMMON_TAGS.map((tag) => (
+                              <option key={tag} value={tag} />
+                            ))}
+                          </datalist>
                         </div>
                       </FormControl>
                       <FormDescription>
@@ -1186,10 +1312,18 @@ export function ProductForm() {
                           <Checkbox
                             checked={field.value ?? false}
                             onCheckedChange={field.onChange}
+                            disabled={status === "draft"}
                           />
                         </FormControl>
                         <div className="space-y-1 leading-none">
-                          <FormLabel>Featured Product</FormLabel>
+                          <FormLabel>
+                            Featured Product
+                            {status === "draft" && (
+                              <span className="text-xs font-normal text-muted-foreground ml-2">
+                                (Disabled in Draft)
+                              </span>
+                            )}
+                          </FormLabel>
                           <FormDescription>
                             Highlight this product in featured sections.
                           </FormDescription>
@@ -1231,26 +1365,69 @@ export function ProductForm() {
                   Cancel
                 </Button>
 
-                <Button
-                  type="submit"
-                  disabled={
-                    createProductMutation.isPending ||
-                    updateProductMutation.isPending
-                  }
-                >
-                  {createProductMutation.isPending ||
-                  updateProductMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-4 w-4" />
-                      {isEditMode ? "Update Product" : "Create Product"}
-                    </>
-                  )}
-                </Button>
+                {isEditMode ? (
+                  <div className="flex gap-3">
+                    <Button
+                      type="submit"
+                      disabled={
+                        updateProductMutation.isPending || isLoadingProduct
+                      }
+                      onClick={() => setSubmitAction("stay")}
+                    >
+                      {updateProductMutation.isPending &&
+                      submitAction === "stay" ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Updating...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-2 h-4 w-4" />
+                          Update
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="secondary"
+                      disabled={
+                        updateProductMutation.isPending || isLoadingProduct
+                      }
+                      onClick={() => setSubmitAction("exit")}
+                    >
+                      {updateProductMutation.isPending &&
+                      submitAction === "exit" ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Updating...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-2 h-4 w-4" />
+                          Update & Go to List
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    type="submit"
+                    disabled={createProductMutation.isPending}
+                    onClick={() => setSubmitAction("exit")}
+                  >
+                    {createProductMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-2 h-4 w-4" />
+                        Create Product
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
             </form>
           </Form>
