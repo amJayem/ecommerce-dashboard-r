@@ -4,7 +4,7 @@ import { AuthLayout } from "@/layouts/AuthLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Overview } from "@/pages/Overview";
 import { Products } from "@/pages/Products";
-import { ProductForm } from "@/pages/ProductForm";
+import { ProductForm } from "@/pages/product/ProductForm";
 import { Categories } from "@/pages/Categories";
 import { CategoryForm } from "@/pages/CategoryForm";
 import { Orders } from "@/pages/Orders";
