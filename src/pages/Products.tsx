@@ -11,7 +11,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DataTable, type Column } from "@/components/ui/data-table";
-import { Package, Plus, Search, Edit, Trash2, X, Filter } from "lucide-react";
+import {
+  Package,
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  X,
+  Filter,
+  RefreshCcw,
+} from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatCurrency } from "@/lib/constants";
@@ -303,12 +312,23 @@ export function Products() {
             Manage your product inventory and details.
           </p>
         </div>
-        {hasPermission("product.create") && (
-          <Button variant="default" onClick={() => navigate("/products/new")}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Product
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={loading}
+          >
+            <RefreshCcw className="mr-2 h-4 w-4" />
+            Refresh
           </Button>
-        )}
+          {hasPermission("product.create") && (
+            <Button variant="default" onClick={() => navigate("/products/new")}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Product
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Search and Filters */}
