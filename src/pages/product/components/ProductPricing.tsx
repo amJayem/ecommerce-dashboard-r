@@ -48,7 +48,7 @@ export function ProductPricing() {
                     {...field}
                     onChange={(e) => {
                       const value = e.target.value;
-                      field.onChange(value === "" ? 0 : value);
+                      field.onChange(value === "" ? 0 : Number(value));
                     }}
                     value={field.value ?? ""}
                   />
@@ -67,7 +67,12 @@ export function ProductPricing() {
           name="originalPrice"
           render={({ field }) => (
             <FormItem className="col-span-1">
-              <FormLabel htmlFor="originalPrice">Original Price</FormLabel>
+              <FormLabel htmlFor="originalPrice">
+                Original Price{" "}
+                <span className="text-muted-foreground text-xs">
+                  (Optional)
+                </span>
+              </FormLabel>
               <FormControl>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-sans">
@@ -84,7 +89,7 @@ export function ProductPricing() {
                     value={field.value ?? ""}
                     onChange={(e) =>
                       field.onChange(
-                        e.target.value === "" ? null : e.target.value
+                        e.target.value === "" ? null : Number(e.target.value)
                       )
                     }
                   />
@@ -113,7 +118,7 @@ export function ProductPricing() {
                   {...field}
                   onChange={(e) => {
                     const value = e.target.value;
-                    field.onChange(value === "" ? 0 : value);
+                    field.onChange(value === "" ? 0 : Number(value));
                   }}
                   value={field.value ?? ""}
                 />
@@ -140,7 +145,7 @@ export function ProductPricing() {
                   value={field.value ?? ""}
                   onChange={(e) =>
                     field.onChange(
-                      e.target.value === "" ? null : e.target.value
+                      e.target.value === "" ? null : Number(e.target.value)
                     )
                   }
                 />

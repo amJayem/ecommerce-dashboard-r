@@ -163,7 +163,7 @@ export function ProductOrganization({ status }: ProductOrganizationProps) {
             name="weight"
             render={({ field }) => (
               <FormItem className="col-span-1 md:col-span-2">
-                <FormLabel htmlFor="weight">Weight</FormLabel>
+                <FormLabel htmlFor="weight">Weight (kg)</FormLabel>
                 <FormControl>
                   <Input
                     id="weight"
@@ -175,7 +175,7 @@ export function ProductOrganization({ status }: ProductOrganizationProps) {
                     value={field.value ?? ""}
                     onChange={(e) =>
                       field.onChange(
-                        e.target.value === "" ? null : e.target.value
+                        e.target.value === "" ? null : Number(e.target.value)
                       )
                     }
                   />
