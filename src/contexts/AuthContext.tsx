@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, type ReactNode } from "react";
 import { authQueries, authMutations, type User } from "@/lib/api/queries/auth";
-import axios from "axios";
 import { AuthContext } from "./AuthContext.types";
 import { toast } from "react-hot-toast";
 
@@ -21,27 +20,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userData = await authQueries.getCurrentUser();
       return userData;
     } catch (error) {
-      // Check if it's a 401 error (expired access token)
-      if (axios.isAxiosError(error) && error.response?.status === 401) {
-        try {
-          // Attempt to refresh token (only once)
-          await authMutations.refreshToken();
-
-          // Retry getMe() only once after refresh
-          try {
-            const userData = await authQueries.getCurrentUser();
-            return userData;
-          } catch (retryError) {
-            // Retry failed - refresh didn't work or token is still invalid
-            return null;
-          }
-        } catch (refreshError) {
-          // Refresh failed - return null to trigger logout
-          return null;
-        }
-      }
-
-      // For non-401 errors, return null
+      // If we get an error, it means even the refresh attempt failed (or it wasn't a 401)
+      console.error("Failed to get current user:", error);
       return null;
     }
   }, []);
@@ -95,6 +75,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     initialize();
 
+    const handleUnauthorized = () => {
+      // Force logout by clearing user state
+      setUser(null);
+      toast.error("Session expired. Please login again.");
+    };
+
     const handleRestricted = (event: Event) => {
       const customEvent = event as CustomEvent;
       const message = customEvent.detail || "Access restricted";
@@ -106,9 +92,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // or we can force navigate if needed, but state update usually triggers re-render
     };
 
+    window.addEventListener("auth-unauthorized", handleUnauthorized);
     window.addEventListener("auth-restricted", handleRestricted);
 
     return () => {
+      window.removeEventListener("auth-unauthorized", handleUnauthorized);
       window.removeEventListener("auth-restricted", handleRestricted);
     };
   }, [initialize]);

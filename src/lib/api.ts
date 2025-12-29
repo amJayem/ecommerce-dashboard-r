@@ -1,45 +1,9 @@
 import axios from 'axios'
+import { api, type ApiError } from './api/axios'
 
-// API base URL - can be moved to environment variables
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:3456/api/v1'
-console.log({ API_BASE_URL })
+// Re-export api instance
+export { api }
 
-// Create axios instance with default config
-export const api = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true, // IMPORTANT: Required for HttpOnly cookies
-  headers: {
-    'Content-Type': 'application/json'
-  }
-})
-
-// Add response interceptor to handle 401 Unauthorized errors globally
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    // If we get a 401 Unauthorized, clear auth state
-    if (axios.isAxiosError(error) && error.response?.status === 401) {
-      // Clear localStorage
-      localStorage.removeItem('user')
-      // Dispatch custom event to notify AuthContext
-      window.dispatchEvent(new CustomEvent('auth-unauthorized'))
-    }
-
-    // Handle 403 Forbidden (Suspended Account)
-    if (axios.isAxiosError(error) && error.response?.status === 403) {
-      const errorMessage = (error.response.data as any)?.message || ''
-      if (errorMessage.toLowerCase().includes('suspended')) {
-         // Clear localStorage
-         localStorage.removeItem('user')
-         // Dispatch custom event to notify App or AuthContext
-         // providing the message to be shown to the user
-         window.dispatchEvent(new CustomEvent('auth-restricted', { detail: errorMessage }))
-      }
-    }
-    return Promise.reject(error)
-  }
-)
 
 // Types for API responses
 export interface LoginRequest {
@@ -80,11 +44,6 @@ export interface RegisterResponse {
   user: User
 }
 
-export interface ApiError {
-  statusCode: number
-  message: string | string[]
-  error: string
-}
 
 // Auth API functions
 export const authApi = {
