@@ -1,8 +1,8 @@
 import axios from 'axios'
 import { api, type ApiError } from './api/axios'
 
-// Re-export api instance
-export { api }
+// Re-export api instance and types
+export { api, type ApiError }
 
 
 // Types for API responses
