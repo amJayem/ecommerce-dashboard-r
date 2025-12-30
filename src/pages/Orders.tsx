@@ -1,3 +1,4 @@
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -7,71 +8,130 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ShoppingCart, Search, Eye, Download } from "lucide-react";
+import {
+  ShoppingCart,
+  Search,
+  Eye,
+  Download,
+  Loader2,
+  Filter,
+  X,
+  RefreshCcw,
+} from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useDebounce } from "@/hooks/use-debounce";
 import { formatCurrency } from "@/lib/constants";
 import { usePermissions } from "@/hooks/usePermissions";
-
-const orders = [
-  {
-    id: "#ORD-001",
-    customer: "Olivia Martin",
-    email: "olivia.martin@email.com",
-    items: 3,
-    total: formatCurrency(1999.0),
-    date: "2024-01-15",
-    status: "completed",
-  },
-  {
-    id: "#ORD-002",
-    customer: "Jackson Lee",
-    email: "jackson.lee@email.com",
-    items: 1,
-    total: formatCurrency(39.0),
-    date: "2024-01-14",
-    status: "pending",
-  },
-  {
-    id: "#ORD-003",
-    customer: "Isabella Nguyen",
-    email: "isabella.nguyen@email.com",
-    items: 2,
-    total: formatCurrency(299.0),
-    date: "2024-01-13",
-    status: "completed",
-  },
-  {
-    id: "#ORD-004",
-    customer: "William Kim",
-    email: "will@email.com",
-    items: 5,
-    total: formatCurrency(99.0),
-    date: "2024-01-12",
-    status: "processing",
-  },
-  {
-    id: "#ORD-005",
-    customer: "Sofia Davis",
-    email: "sofia.davis@email.com",
-    items: 1,
-    total: formatCurrency(39.0),
-    date: "2024-01-11",
-    status: "pending",
-  },
-];
-
-const statusColors = {
-  completed: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400",
-  pending:
-    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-  processing:
-    "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-  cancelled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-};
+import {
+  ordersApi,
+  type Order,
+  type OrderQuery,
+  type OrderStatus,
+  type PaymentStatus,
+} from "@/lib/api";
+import { StatusBadge } from "@/components/orders/StatusBadge";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
 
 export function Orders() {
   usePageTitle("Orders");
   const { hasPermission } = usePermissions();
+  const navigate = useNavigate();
+
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<{
+    orders: Order[];
+    total: number;
+    pages: number;
+  }>({
+    orders: [],
+    total: 0,
+    pages: 1,
+  });
+
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebounce(searchQuery, 500);
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<
+    PaymentStatus | "all"
+  >("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [minAmount, setMinAmount] = useState("");
+  const [maxAmount, setMaxAmount] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+
+  const queryParams = useMemo<OrderQuery>(() => {
+    const params: OrderQuery = {
+      page: currentPage,
+      limit: limit,
+    };
+
+    if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
+    if (statusFilter !== "all") params.status = statusFilter;
+    if (paymentStatusFilter !== "all")
+      params.paymentStatus = paymentStatusFilter;
+    if (startDate) params.startDate = new Date(startDate).toISOString();
+    if (endDate) params.endDate = new Date(endDate).toISOString();
+    if (minAmount) params.minAmount = Number(minAmount);
+    if (maxAmount) params.maxAmount = Number(maxAmount);
+
+    return params;
+  }, [
+    currentPage,
+    limit,
+    searchQuery,
+    statusFilter,
+    paymentStatusFilter,
+    startDate,
+    endDate,
+    minAmount,
+    maxAmount,
+  ]);
+
+  const fetchOrders = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await ordersApi.getAll(queryParams);
+      setData(response);
+    } catch (error) {
+      toast.error("Failed to load orders");
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  }, [queryParams]);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setStatusFilter("all");
+    setPaymentStatusFilter("all");
+    setStartDate("");
+    setEndDate("");
+    setMinAmount("");
+    setMaxAmount("");
+    setCurrentPage(1);
+  };
+
+  const hasActiveFilters =
+    searchQuery.trim() !== "" ||
+    statusFilter !== "all" ||
+    paymentStatusFilter !== "all" ||
+    startDate !== "" ||
+    endDate !== "" ||
+    minAmount !== "" ||
+    maxAmount !== "";
+
+  const pendingOrdersCount = data.orders.filter(
+    (o) => o.status === "PENDING"
+  ).length;
 
   return (
     <div className="space-y-8">
@@ -83,12 +143,23 @@ export function Orders() {
             View and manage all customer orders.
           </p>
         </div>
-        {hasPermission("order.read") && (
-          <Button variant="outline">
-            <Download className="mr-2 h-4 w-4" />
-            Export
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fetchOrders()}
+            disabled={loading}
+          >
+            <RefreshCcw className="mr-2 h-4 w-4" />
+            Refresh
           </Button>
-        )}
+          {hasPermission("order.read") && (
+            <Button variant="outline" size="sm">
+              <Download className="mr-2 h-4 w-4" />
+              Export
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -99,7 +170,7 @@ export function Orders() {
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{orders.length}</div>
+            <div className="text-2xl font-bold">{data.total}</div>
             <p className="text-xs text-muted-foreground">All time</p>
           </CardContent>
         </Card>
@@ -109,22 +180,18 @@ export function Orders() {
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {orders.filter((o) => o.status === "pending").length}
-            </div>
-            <p className="text-xs text-muted-foreground">Awaiting processing</p>
+            <div className="text-2xl font-bold">{pendingOrdersCount}</div>
+            <p className="text-xs text-muted-foreground">In this view</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
+            <CardTitle className="text-sm font-medium">Pages</CardTitle>
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {orders.filter((o) => o.status === "completed").length}
-            </div>
-            <p className="text-xs text-muted-foreground">This month</p>
+            <div className="text-2xl font-bold">{data.pages}</div>
+            <p className="text-xs text-muted-foreground">Total pages</p>
           </CardContent>
         </Card>
         <Card>
@@ -133,29 +200,214 @@ export function Orders() {
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(2475.0)}</div>
-            <p className="text-xs text-muted-foreground">Total revenue</p>
+            <div className="text-2xl font-bold">
+              {formatCurrency(
+                data.orders.reduce((acc, curr) => acc + curr.totalAmount, 0)
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">Sum of current view</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Search */}
+      {/* Search and Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Search Orders</CardTitle>
-          <CardDescription>
-            Find orders by ID, customer, or email
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Search & Filter Orders</CardTitle>
+              <CardDescription>
+                Find orders by ID, customer, email, or application filters
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearFilters}
+                  className="text-muted-foreground"
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Clear Filters
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                <Filter className="mr-2 h-4 w-4" />
+                {showFilters ? "Hide" : "Show"} Filters
+              </Button>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="relative">
+        <CardContent className="space-y-4">
+          <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Search orders..."
+              placeholder="Search orders by ID, customer name, email or phone..."
               className="pl-10"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
             />
           </div>
+
+          {/* Advanced Filters */}
+          {showFilters && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-4 border-t">
+              {/* Status Filter */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Order Status</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value as OrderStatus | "all");
+                    setCurrentPage(1);
+                  }}
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="all">All Status</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="CONFIRMED">Confirmed</option>
+                  <option value="SHIPPED">Shipped</option>
+                  <option value="DELIVERED">Delivered</option>
+                  <option value="CANCELLED">Cancelled</option>
+                </select>
+              </div>
+
+              {/* Payment Status Filter */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Payment Status</label>
+                <select
+                  value={paymentStatusFilter}
+                  onChange={(e) => {
+                    setPaymentStatusFilter(
+                      e.target.value as PaymentStatus | "all"
+                    );
+                    setCurrentPage(1);
+                  }}
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="all">All Payment Status</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="PAID">Paid</option>
+                  <option value="FAILED">Failed</option>
+                  <option value="REFUNDED">Refunded</option>
+                </select>
+              </div>
+
+              {/* Date Filters */}
+              <div className="space-y-2 lg:col-span-1">
+                <label className="text-sm font-medium">Date Range</label>
+                <div className="flex gap-2">
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => {
+                      setStartDate(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="flex-1"
+                  />
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => {
+                      setEndDate(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+
+              {/* Amount Filters */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Amount Range</label>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Min"
+                    value={minAmount}
+                    onChange={(e) => {
+                      setMinAmount(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="flex-1"
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Max"
+                    value={maxAmount}
+                    onChange={(e) => {
+                      setMaxAmount(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Active Filters Summary */}
+          {hasActiveFilters && (
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
+              <span className="text-sm text-muted-foreground">
+                Active filters:
+              </span>
+              {statusFilter !== "all" && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">
+                  Status: {statusFilter}
+                  <button
+                    onClick={() => setStatusFilter("all")}
+                    className="hover:text-primary/80"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {paymentStatusFilter !== "all" && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">
+                  Payment: {paymentStatusFilter}
+                  <button
+                    onClick={() => setPaymentStatusFilter("all")}
+                    className="hover:text-primary/80"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {startDate && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">
+                  From: {startDate}
+                  <button
+                    onClick={() => setStartDate("")}
+                    className="hover:text-primary/80"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {endDate && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">
+                  To: {endDate}
+                  <button
+                    onClick={() => setEndDate("")}
+                    className="hover:text-primary/80"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -182,43 +434,139 @@ export function Orders() {
                 </tr>
               </thead>
               <tbody>
-                {orders.map((order) => (
-                  <tr key={order.id} className="border-b hover:bg-accent/50">
-                    <td className="p-4 font-medium">{order.id}</td>
-                    <td className="p-4">
-                      <div>
-                        <p className="font-medium">{order.customer}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {order.email}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="p-4">{order.items}</td>
-                    <td className="p-4 font-medium">{order.total}</td>
-                    <td className="p-4">{order.date}</td>
-                    <td className="p-4">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                          statusColors[
-                            order.status as keyof typeof statusColors
-                          ]
-                        }`}
-                      >
-                        {order.status}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex items-center justify-end">
-                        <Button variant="ghost" size="icon">
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center">
+                      <div className="flex items-center justify-center">
+                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                        <span className="ml-2">Loading orders...</span>
                       </div>
                     </td>
                   </tr>
-                ))}
+                ) : data.orders.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="p-8 text-center text-muted-foreground"
+                    >
+                      No orders found.
+                    </td>
+                  </tr>
+                ) : (
+                  data.orders.map((order) => (
+                    <tr key={order.id} className="border-b hover:bg-accent/50">
+                      <td className="p-4 font-medium">#{order.id}</td>
+                      <td className="p-4">
+                        <div>
+                          <p className="font-medium text-primary">
+                            {order.shippingAddress?.name ||
+                              order.user?.name ||
+                              "Guest"}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {order.user?.email || "N/A"}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="p-4">{order.items?.length || 0}</td>
+                      <td className="p-4 font-medium">
+                        {formatCurrency(order.totalAmount)}
+                      </td>
+                      <td className="p-4">
+                        <div className="flex flex-col">
+                          <span>
+                            {new Date(order.createdAt).toLocaleDateString()}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(order.createdAt).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex flex-col gap-1">
+                          <StatusBadge status={order.status} />
+                          <StatusBadge status={order.paymentStatus} />
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center justify-end">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => navigate(`/orders/${order.id}`)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
+
+          {/* Pagination */}
+          {!loading && data.orders.length > 0 && (
+            <div className="flex flex-col gap-4 mt-4 pt-4 border-t">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {data.orders.length} of {data.total} orders
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <label
+                      htmlFor="limit-select"
+                      className="text-sm text-muted-foreground"
+                    >
+                      Items per page:
+                    </label>
+                    <select
+                      id="limit-select"
+                      value={limit}
+                      onChange={(e) => {
+                        setLimit(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      className="h-8 rounded-md border border-input bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                    </select>
+                  </div>
+                </div>
+                {data.pages > 1 && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      Page {currentPage} of {data.pages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setCurrentPage((p) => Math.min(data.pages, p + 1))
+                      }
+                      disabled={currentPage === data.pages}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

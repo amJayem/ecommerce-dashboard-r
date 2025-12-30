@@ -14,6 +14,8 @@ import { Login } from "@/pages/Login";
 import { Register } from "@/pages/Register";
 import { Users } from "@/pages/Users";
 
+import { OrderDetails } from "@/pages/order/OrderDetails";
+
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -54,6 +56,10 @@ export const router = createBrowserRouter([
       {
         path: "orders",
         element: <Orders />,
+      },
+      {
+        path: "orders/:id",
+        element: <OrderDetails />,
       },
       {
         path: "customers",

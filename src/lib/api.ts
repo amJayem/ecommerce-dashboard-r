@@ -23,6 +23,77 @@ export interface User {
   createdAt: string
 }
 
+export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'
+export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
+export type PaymentMethod = 'BKASH' | 'CASH_ON_DELIVERY' | 'STRIPE'
+
+export interface ShippingAddress {
+  name: string
+  phone: string
+  address1: string
+  address2?: string | null
+  city: string
+  postalCode: string
+  note?: string | null
+}
+
+export interface OrderItem {
+  id: number
+  orderId: number
+  productId: number
+  quantity: number
+  price: number
+  total: number
+  product: {
+    id: number
+    name: string
+    slug: string
+    coverImage: string
+    price: number
+  }
+}
+
+export interface Order {
+  id: number
+  userId: number
+  status: OrderStatus
+  totalAmount: number
+  subtotal: number
+  tax: number
+  shippingCost: number
+  discount: number
+  paymentStatus: PaymentStatus
+  paymentMethod: PaymentMethod
+  shippingAddress: ShippingAddress | null
+  billingAddress: ShippingAddress | null
+  shippingAddressText: string | null
+  deliveryNote: string | null
+  estimatedDelivery: string | null
+  actualDelivery: string | null
+  createdAt: string
+  updatedAt: string
+  user: {
+    id: number
+    name: string
+    email: string
+    phoneNumber: string | null
+  }
+  items: OrderItem[]
+}
+
+export interface OrderQuery {
+  search?: string
+  startDate?: string
+  endDate?: string
+  minAmount?: number
+  maxAmount?: number
+  status?: OrderStatus
+  paymentStatus?: PaymentStatus
+  paymentMethod?: string
+  page?: number
+  limit?: number
+}
+
 export interface LoginResponse {
   user: User
 }
@@ -198,6 +269,93 @@ export const authApi = {
     } catch {
       // Token invalid, expired, or not present
       return false
+    }
+  }
+}
+
+// Orders API functions
+export const ordersApi = {
+  /**
+   * Get all orders with pagination and filtering
+   */
+  async getAll(params?: OrderQuery): Promise<{ orders: Order[], total: number, pages: number }> {
+    try {
+      const response = await api.get('/orders', { params })
+      // The guide doesn't specify the exactly response structure for list, 
+      // but usually for paginated list it returns metadata.
+      // If it returns a simple array, we can adapt.
+      // Assuming a standard paginated response or array based on previous code.
+      if (Array.isArray(response.data)) {
+        return { orders: response.data, total: response.data.length, pages: 1 }
+      }
+      return response.data
+    } catch (error) {
+      console.error('Failed to fetch orders:', error)
+      throw new Error('Failed to fetch orders')
+    }
+  },
+
+  /**
+   * Get a single order by ID
+   */
+  async getById(id: number | string): Promise<Order> {
+    try {
+      const response = await api.get<Order>(`/orders/${id}`)
+      return response.data
+    } catch (error) {
+      console.error(`Failed to fetch order ${id}:`, error)
+      throw new Error(`Failed to fetch order ${id}`)
+    }
+  },
+
+  /**
+   * Update general order info
+   */
+  async update(id: number | string, data: Partial<Order>): Promise<Order> {
+    try {
+      const response = await api.patch<Order>(`/admin/orders/${id}`, data)
+      return response.data
+    } catch (error) {
+      console.error(`Failed to update order ${id}:`, error)
+      throw new Error('Failed to update order')
+    }
+  },
+
+  /**
+   * Update order status
+   */
+  async updateStatus(id: number | string, status: OrderStatus): Promise<Order> {
+    try {
+      const response = await api.patch<Order>(`/orders/${id}/status`, { status })
+      return response.data
+    } catch (error) {
+      console.error(`Failed to update order status ${id}:`, error)
+      throw new Error('Failed to update order status')
+    }
+  },
+
+  /**
+   * Update payment status
+   */
+  async updatePaymentStatus(id: number | string, paymentStatus: PaymentStatus): Promise<Order> {
+    try {
+      const response = await api.patch<Order>(`/orders/${id}/payment-status`, { paymentStatus })
+      return response.data
+    } catch (error) {
+      console.error(`Failed to update payment status ${id}:`, error)
+      throw new Error('Failed to update payment status')
+    }
+  },
+
+  /**
+   * Delete/Cancel an order
+   */
+  async delete(id: number | string): Promise<void> {
+    try {
+      await api.delete(`/orders/${id}`)
+    } catch (error) {
+      console.error(`Failed to delete order ${id}:`, error)
+      throw new Error('Failed to delete order')
     }
   }
 }
