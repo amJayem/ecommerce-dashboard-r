@@ -179,3 +179,15 @@ export function useUpdateProductStock() {
     }
   })
 }
+
+export function useImportProducts() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (file: File) => productMutations.importProductsCsv(file),
+    onSuccess: () => {
+      // Invalidate product lists to refetch
+      queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+    }
+  })
+}

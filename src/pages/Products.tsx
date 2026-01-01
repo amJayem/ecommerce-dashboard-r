@@ -20,6 +20,8 @@ import {
   X,
   Filter,
   RefreshCcw,
+  Download,
+  Upload,
 } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -30,7 +32,9 @@ import {
   type Product,
   type ProductListParams,
 } from "@/hooks/useProducts";
+import { productQueries } from "@/lib/api/queries/products";
 import { usePermissions } from "@/hooks/usePermissions";
+import { ImportProductsModal } from "@/components/products/ImportProductsModal";
 import { cn } from "@/lib/utils";
 
 type StatusFilter = "all" | "draft" | "published" | "archived";
@@ -41,6 +45,7 @@ export function Products() {
   usePageTitle("Products");
   const navigate = useNavigate();
   const { hasPermission } = usePermissions();
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearchQuery = useDebounce(searchQuery, 500); // Debounce search input by 500ms
   const [currentPage, setCurrentPage] = useState(1);
@@ -299,6 +304,31 @@ export function Products() {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      toast.promise(productQueries.exportProductsCsv(), {
+        loading: "Exporting products...",
+        success: (blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.style.display = "none";
+          a.href = url;
+          a.download = `products-export-${
+            new Date().toISOString().split("T")[0]
+          }.csv`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          return "Products exported successfully";
+        },
+        error: "Failed to export products",
+      });
+    } catch (err) {
+      console.error("Export error:", err);
+    }
+  };
+
   const showActions =
     hasPermission("product.update") || hasPermission("product.delete");
 
@@ -322,6 +352,28 @@ export function Products() {
             <RefreshCcw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
+          {hasPermission("admin.action") && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              disabled={loading}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Export CSV
+            </Button>
+          )}
+          {hasPermission("admin.action") && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsImportModalOpen(true)}
+              disabled={loading}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Import CSV
+            </Button>
+          )}
           {hasPermission("product.create") && (
             <Button variant="default" onClick={() => navigate("/products/new")}>
               <Plus className="mr-2 h-4 w-4" />
@@ -648,6 +700,12 @@ export function Products() {
           )}
         </CardContent>
       </Card>
+
+      <ImportProductsModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={() => refetch()}
+      />
     </div>
   );
 }

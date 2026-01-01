@@ -239,6 +239,20 @@ export const productQueries = {
       return handleApiError(error, "Failed to fetch category products");
     }
   },
+
+  /**
+   * Export products to CSV (Admin only)
+   */
+  exportProductsCsv: async (): Promise<Blob> => {
+    try {
+      const response = await api.get("/products/export/csv", {
+        responseType: "blob",
+      });
+      return response.data;
+    } catch (error) {
+      return handleApiError(error, "Failed to export products");
+    }
+  },
 };
 
 // Mutation Functions
@@ -319,6 +333,29 @@ export const productMutations = {
         throw new Error("Product not found");
       }
       return handleApiError(error, "Failed to update stock");
+    }
+  },
+
+  /**
+   * Import products from CSV (Admin only)
+   */
+  importProductsCsv: async (file: File): Promise<any> => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await api.post<any>(
+        "/products/import/csv",
+        formData,
+        {
+          headers: {
+            "Content-Type": undefined, // Force Axios to set correctly with boundary
+          },
+        }
+      );
+      console.log("Import response:", response.data);
+      return response.data;
+    } catch (error) {
+      return handleApiError(error, "Failed to import products");
     }
   },
 };
