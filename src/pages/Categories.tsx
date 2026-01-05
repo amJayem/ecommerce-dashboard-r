@@ -14,10 +14,11 @@ import { usePermissions } from "@/hooks/usePermissions";
 import {
   useCategories,
   useDeleteCategory,
+  useImportCategories,
   type Category,
 } from "@/hooks/useCategories";
 import { categoryQueries } from "@/lib/api/queries/categories";
-import { ImportCategoriesModal } from "@/components/categories/ImportCategoriesModal";
+import { ImportCSVModal } from "@/components/shared/ImportCSVModal";
 import { cn } from "@/lib/utils";
 import {
   Download,
@@ -53,6 +54,7 @@ export function Categories() {
     refetch,
   } = useCategories();
   const deleteCategoryMutation = useDeleteCategory();
+  const importMutation = useImportCategories();
 
   const handleExport = async () => {
     try {
@@ -329,10 +331,20 @@ export function Categories() {
         </CardContent>
       </Card>
 
-      <ImportCategoriesModal
+      <ImportCSVModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         onSuccess={() => refetch()}
+        title="Import Categories"
+        description="Upload a CSV file to bulk import or update categories in your store."
+        entityName="categories"
+        requirements={[
+          "File format must be .csv",
+          "Required headers: name, slug, description",
+          "Existing categories will be updated based on slug",
+          "Include parentId to set hierarchy",
+        ]}
+        onImport={(file) => importMutation.mutateAsync(file)}
       />
     </div>
   );

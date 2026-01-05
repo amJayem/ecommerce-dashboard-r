@@ -9,7 +9,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { useImportProducts } from "@/hooks/useProducts";
 import {
   Loader2,
   Upload,
@@ -19,24 +18,33 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
-interface ImportProductsModalProps {
+interface ImportCSVModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  title: string;
+  description: string;
+  entityName: string; // e.g., "products", "categories"
+  requirements: string[]; // List of requirements to display
+  onImport: (file: File) => Promise<any>; // The mutation function
 }
 
-export function ImportProductsModal({
+export function ImportCSVModal({
   isOpen,
   onClose,
   onSuccess,
-}: ImportProductsModalProps) {
+  title,
+  description,
+  entityName,
+  requirements,
+  onImport,
+}: ImportCSVModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<
     "idle" | "uploading" | "success" | "error"
   >("idle");
   const [message, setMessage] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const importMutation = useImportProducts();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -59,7 +67,7 @@ export function ImportProductsModal({
 
     try {
       setStatus("uploading");
-      const result = await importMutation.mutateAsync(file);
+      const result = await onImport(file);
       setStatus("success");
 
       // Determine success message from various possible response formats
@@ -80,21 +88,21 @@ export function ImportProductsModal({
           result?.total ??
           result?.data?.length;
         if (count !== undefined) {
-          successMsg = `${successMsg} (${count} products)`;
+          successMsg = `${successMsg} (${count} ${entityName})`;
         }
       }
 
       setMessage(successMsg);
       onSuccess();
     } catch (err: any) {
-      console.error("Import error details:", {
+      console.error(`${entityName} import error:`, {
         message: err.message,
         response: err.response?.data,
         status: err.response?.status,
       });
       setStatus("error");
       setMessage(
-        err instanceof Error ? err.message : "Failed to import products"
+        err instanceof Error ? err.message : `Failed to import ${entityName}`
       );
     }
   };
@@ -114,11 +122,9 @@ export function ImportProductsModal({
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <Upload className="h-5 w-5" />
-            Import Products
+            {title}
           </AlertDialogTitle>
-          <AlertDialogDescription>
-            Upload a CSV file to bulk import or update products in your store.
-          </AlertDialogDescription>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
 
         <div className="space-y-4 py-4">
@@ -129,12 +135,9 @@ export function ImportProductsModal({
               CSV Requirements
             </h4>
             <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-              <li>File format must be .csv</li>
-              <li>
-                Required headers: <strong>name, price, stock</strong>
-              </li>
-              <li>Values must be correctly formatted (e.g., numeric prices)</li>
-              <li>Existing products will be updated based on SKU/Name</li>
+              {requirements.map((req, index) => (
+                <li key={index}>{req}</li>
+              ))}
             </ul>
           </div>
 
@@ -155,8 +158,7 @@ export function ImportProductsModal({
                   className="p-1 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                   title="Remove file"
                 >
-                  <AlertCircle className="h-4 w-4" />{" "}
-                  {/* Using an icon for better click area */}
+                  <AlertCircle className="h-4 w-4" />
                 </button>
               </div>
             ) : (

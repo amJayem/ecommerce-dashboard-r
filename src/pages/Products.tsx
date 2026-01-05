@@ -12,16 +12,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import {
+  Download,
+  Edit,
+  Filter,
   Package,
   Plus,
-  Search,
-  Edit,
-  Trash2,
-  X,
-  Filter,
   RefreshCcw,
-  Download,
+  Search,
+  Trash2,
   Upload,
+  X,
 } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -29,12 +29,13 @@ import { formatCurrency } from "@/lib/constants";
 import {
   useProducts,
   useDeleteProduct,
+  useImportProducts,
   type Product,
   type ProductListParams,
 } from "@/hooks/useProducts";
 import { productQueries } from "@/lib/api/queries/products";
 import { usePermissions } from "@/hooks/usePermissions";
-import { ImportProductsModal } from "@/components/products/ImportProductsModal";
+import { ImportCSVModal } from "@/components/shared/ImportCSVModal";
 import { cn } from "@/lib/utils";
 
 type StatusFilter = "all" | "draft" | "published" | "archived";
@@ -103,6 +104,7 @@ export function Products() {
   // React Query hooks
   const { data, isLoading, error, refetch } = useProducts(queryParams);
   const deleteProductMutation = useDeleteProduct();
+  const importMutation = useImportProducts();
 
   const products = data?.products ?? [];
   const pagination = data?.pagination ?? {
@@ -701,10 +703,20 @@ export function Products() {
         </CardContent>
       </Card>
 
-      <ImportProductsModal
+      <ImportCSVModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         onSuccess={() => refetch()}
+        title="Import Products"
+        description="Upload a CSV file to bulk import or update products in your store."
+        entityName="products"
+        requirements={[
+          "File format must be .csv",
+          "Required headers: name, price, stock",
+          "Values must be correctly formatted (e.g., numeric prices)",
+          "Existing products will be updated based on SKU/Name",
+        ]}
+        onImport={(file) => importMutation.mutateAsync(file)}
       />
     </div>
   );
