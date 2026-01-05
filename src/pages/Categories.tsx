@@ -16,8 +16,19 @@ import {
   useDeleteCategory,
   type Category,
 } from "@/hooks/useCategories";
+import { categoryQueries } from "@/lib/api/queries/categories";
+import { ImportCategoriesModal } from "@/components/categories/ImportCategoriesModal";
 import { cn } from "@/lib/utils";
-import { Edit, EyeOff, Plus, RefreshCcw, Search, Trash2 } from "lucide-react";
+import {
+  Download,
+  Edit,
+  EyeOff,
+  Plus,
+  RefreshCcw,
+  Search,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
@@ -31,6 +42,7 @@ export function Categories() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const debouncedSearch = useDebounce(searchQuery, 300);
 
   // React Query hooks
@@ -41,6 +53,31 @@ export function Categories() {
     refetch,
   } = useCategories();
   const deleteCategoryMutation = useDeleteCategory();
+
+  const handleExport = async () => {
+    try {
+      toast.promise(categoryQueries.exportCategoriesCsv(), {
+        loading: "Exporting categories...",
+        success: (blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.style.display = "none";
+          a.href = url;
+          a.download = `categories-export-${
+            new Date().toISOString().split("T")[0]
+          }.csv`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          return "Categories exported successfully";
+        },
+        error: "Failed to export categories",
+      });
+    } catch (err) {
+      console.error("Export error:", err);
+    }
+  };
 
   const errorMessage = error instanceof Error ? error.message : null;
 
@@ -169,6 +206,30 @@ export function Categories() {
             <RefreshCcw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
+
+          {hasPermission("admin.action") && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExport}
+                disabled={loading}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Export CSV
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsImportModalOpen(true)}
+                disabled={loading}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Import CSV
+              </Button>
+            </>
+          )}
+
           {hasPermission("category.create") && (
             <Button onClick={() => navigate("/categories/new")}>
               <Plus className="mr-2 h-4 w-4" />
@@ -267,6 +328,12 @@ export function Categories() {
           )}
         </CardContent>
       </Card>
+
+      <ImportCategoriesModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={() => refetch()}
+      />
     </div>
   );
 }

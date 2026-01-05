@@ -133,6 +133,20 @@ export const categoryQueries = {
       return handleApiError(error, "Failed to fetch category products");
     }
   },
+
+  /**
+   * Export categories to CSV (Admin only)
+   */
+  exportCategoriesCsv: async (): Promise<Blob> => {
+    try {
+      const response = await api.get("/categories/export/csv", {
+        responseType: "blob",
+      });
+      return response.data;
+    } catch (error) {
+      return handleApiError(error, "Failed to export categories");
+    }
+  },
 };
 
 // Mutation Functions
@@ -173,6 +187,25 @@ export const categoryMutations = {
       return response.data;
     } catch (error) {
       return handleApiError(error, "Failed to delete category");
+    }
+  },
+
+  /**
+   * Import categories from CSV (Admin only)
+   */
+  importCategoriesCsv: async (file: File): Promise<any> => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await api.post<any>("/categories/import/csv", formData, {
+        headers: {
+          "Content-Type": undefined, // Force Axios to set correctly with boundary
+        },
+      });
+      console.log("Category import response:", response.data);
+      return response.data;
+    } catch (error) {
+      return handleApiError(error, "Failed to import categories");
     }
   },
 };

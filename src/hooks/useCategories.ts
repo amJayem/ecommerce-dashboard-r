@@ -126,14 +126,27 @@ export function useUpdateCategory() {
 }
 
 export function useDeleteCategory() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (id: number) => categoryMutations.deleteCategory(id),
     onSuccess: () => {
       // Invalidate category lists to refetch
-      queryClient.invalidateQueries({ queryKey: categoryKeys.lists() })
-      queryClient.invalidateQueries({ queryKey: categoryKeys.hierarchy() })
-    }
-  })
+      queryClient.invalidateQueries({ queryKey: categoryKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: categoryKeys.hierarchy() });
+    },
+  });
+}
+
+export function useImportCategories() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (file: File) => categoryMutations.importCategoriesCsv(file),
+    onSuccess: () => {
+      // Invalidate category lists to refetch
+      queryClient.invalidateQueries({ queryKey: categoryKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: categoryKeys.hierarchy() });
+    },
+  });
 }
