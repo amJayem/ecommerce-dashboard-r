@@ -253,6 +253,20 @@ export const productQueries = {
       return handleApiError(error, "Failed to export products");
     }
   },
+
+  /**
+   * Export sample products CSV (Admin only)
+   */
+  exportProductsSampleCsv: async (): Promise<Blob> => {
+    try {
+      const response = await api.get("/products/export/sample", {
+        responseType: "blob",
+      });
+      return response.data;
+    } catch (error) {
+      return handleApiError(error, "Failed to export sample products");
+    }
+  },
 };
 
 // Mutation Functions

@@ -147,6 +147,20 @@ export const categoryQueries = {
       return handleApiError(error, "Failed to export categories");
     }
   },
+
+  /**
+   * Export sample categories CSV (Admin only)
+   */
+  exportCategoriesSampleCsv: async (): Promise<Blob> => {
+    try {
+      const response = await api.get("/categories/export/sample", {
+        responseType: "blob",
+      });
+      return response.data;
+    } catch (error) {
+      return handleApiError(error, "Failed to export sample categories");
+    }
+  },
 };
 
 // Mutation Functions

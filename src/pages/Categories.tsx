@@ -56,6 +56,29 @@ export function Categories() {
   const deleteCategoryMutation = useDeleteCategory();
   const importMutation = useImportCategories();
 
+  const handleDownloadSample = async () => {
+    try {
+      toast.promise(categoryQueries.exportCategoriesSampleCsv(), {
+        loading: "Downloading sample...",
+        success: (blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.style.display = "none";
+          a.href = url;
+          a.download = "categories_sample.csv";
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          return "Sample template downloaded";
+        },
+        error: "Failed to download sample",
+      });
+    } catch (err) {
+      console.error("Sample download error:", err);
+    }
+  };
+
   const handleExport = async () => {
     try {
       toast.promise(categoryQueries.exportCategoriesCsv(), {
@@ -345,6 +368,7 @@ export function Categories() {
           "Include parentId to set hierarchy",
         ]}
         onImport={(file) => importMutation.mutateAsync(file)}
+        onDownloadSample={handleDownloadSample}
       />
     </div>
   );

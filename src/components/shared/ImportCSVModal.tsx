@@ -15,6 +15,7 @@ import {
   FileType,
   CheckCircle2,
   AlertCircle,
+  Download,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
@@ -27,6 +28,7 @@ interface ImportCSVModalProps {
   entityName: string; // e.g., "products", "categories"
   requirements: string[]; // List of requirements to display
   onImport: (file: File) => Promise<any>; // The mutation function
+  onDownloadSample?: () => void; // Optional function to download sample CSV
 }
 
 export function ImportCSVModal({
@@ -38,6 +40,7 @@ export function ImportCSVModal({
   entityName,
   requirements,
   onImport,
+  onDownloadSample,
 }: ImportCSVModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<
@@ -139,6 +142,22 @@ export function ImportCSVModal({
                 <li key={index}>{req}</li>
               ))}
             </ul>
+            {onDownloadSample && (
+              <div className="pt-2 border-t border-accent mt-2">
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="h-auto p-0 text-primary hover:text-primary/80 font-medium flex items-center gap-1.5"
+                  onClick={onDownloadSample}
+                >
+                  <Download className="h-4 w-4" />
+                  Download Sample CSV
+                </Button>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Use this template to prepare your file.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* File Selection */}

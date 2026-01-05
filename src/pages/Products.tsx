@@ -116,6 +116,29 @@ export function Products() {
   const loading = isLoading;
   const errorMessage = error instanceof Error ? error.message : null;
 
+  const handleDownloadSample = async () => {
+    try {
+      toast.promise(productQueries.exportProductsSampleCsv(), {
+        loading: "Downloading sample...",
+        success: (blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.style.display = "none";
+          a.href = url;
+          a.download = "products_sample.csv";
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          return "Sample template downloaded";
+        },
+        error: "Failed to download sample",
+      });
+    } catch (err) {
+      console.error("Sample download error:", err);
+    }
+  };
+
   // Define table columns
   const columns: Column<Product>[] = [
     {
@@ -717,6 +740,7 @@ export function Products() {
           "Existing products will be updated based on SKU/Name",
         ]}
         onImport={(file) => importMutation.mutateAsync(file)}
+        onDownloadSample={handleDownloadSample}
       />
     </div>
   );
