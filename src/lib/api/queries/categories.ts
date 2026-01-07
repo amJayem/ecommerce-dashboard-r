@@ -22,6 +22,13 @@ export interface Category {
   parent?: Category | null;
   children?: Category[];
   _count?: CategoryCount;
+  deletedAt?: string | null;
+}
+
+export interface CategoryListParams {
+  search?: string;
+  isActive?: boolean;
+  includeDeleted?: boolean;
 }
 
 export interface CategoryProduct {
@@ -75,9 +82,14 @@ export const categoryQueries = {
   /**
    * Get all categories
    */
-  getCategories: async (): Promise<Category[]> => {
+  getCategories: async (params?: CategoryListParams): Promise<Category[]> => {
     try {
-      const response = await api.get<Category[]>("/categories");
+      const response = await api.get<Category[]>("/categories", {
+        params: {
+          ...params,
+          includeDeleted: params?.includeDeleted ?? false,
+        },
+      });
       return response.data;
     } catch (error) {
       return handleApiError(error, "Failed to fetch categories");

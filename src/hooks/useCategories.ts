@@ -3,6 +3,7 @@ import {
   categoryQueries,
   categoryMutations,
   type Category,
+  type CategoryListParams,
   type CreateCategoryRequest,
   type UpdateCategoryRequest,
   type CategoryProduct
@@ -29,10 +30,10 @@ export const categoryKeys = {
 }
 
 // Hooks
-export function useCategories() {
+export function useCategories(params?: CategoryListParams) {
   return useQuery({
-    queryKey: categoryKeys.list(),
-    queryFn: () => categoryQueries.getCategories(),
+    queryKey: params ? [...categoryKeys.list(), params] : categoryKeys.list(),
+    queryFn: () => categoryQueries.getCategories(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,

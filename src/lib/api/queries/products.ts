@@ -29,6 +29,7 @@ export interface Product {
   coverImage?: string | null;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string | null;
   category?: {
     id: number;
     name: string;
@@ -46,6 +47,7 @@ export interface ProductListParams {
   search?: string;
   page?: number;
   limit?: number;
+  includeDeleted?: boolean;
 }
 
 export interface ProductsResponse {
@@ -140,7 +142,10 @@ export const productQueries = {
   getProducts: async (params?: ProductListParams): Promise<ProductsResponse> => {
     try {
       const response = await api.get<ProductsResponse>("/products", {
-        params,
+        params: {
+          ...params,
+          includeDeleted: params?.includeDeleted ?? false,
+        },
       });
       return response.data;
     } catch (error) {

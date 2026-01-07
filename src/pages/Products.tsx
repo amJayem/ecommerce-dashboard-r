@@ -56,6 +56,7 @@ export function Products() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [featuredFilter, setFeaturedFilter] = useState<FeaturedFilter>("all");
   const [stockFilter, setStockFilter] = useState<StockFilter>("all");
+  const [showDeleted, setShowDeleted] = useState(false);
   const [categoryId, setCategoryId] = useState<string>("");
   const [showFilters, setShowFilters] = useState(false);
 
@@ -90,6 +91,10 @@ export function Products() {
       params.search = debouncedSearchQuery.trim();
     }
 
+    if (showDeleted) {
+      params.includeDeleted = true;
+    }
+
     return params;
   }, [
     currentPage,
@@ -99,6 +104,7 @@ export function Products() {
     stockFilter,
     categoryId,
     debouncedSearchQuery,
+    showDeleted,
   ]);
 
   // React Query hooks
@@ -251,6 +257,11 @@ export function Products() {
               Featured
             </span>
           )}
+          {product.deletedAt && (
+            <span className="inline-flex rounded-full px-2 py-1 text-xs font-bold uppercase w-fit bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+              Deleted
+            </span>
+          )}
         </div>
       ),
     },
@@ -296,6 +307,7 @@ export function Products() {
     setStatusFilter("all");
     setFeaturedFilter("all");
     setStockFilter("all");
+    setShowDeleted(false);
     setCategoryId("");
     setSearchQuery("");
     setCurrentPage(1);
@@ -305,6 +317,7 @@ export function Products() {
     statusFilter !== "all" ||
     featuredFilter !== "all" ||
     stockFilter !== "all" ||
+    showDeleted ||
     categoryId.trim() !== "" ||
     searchQuery.trim() !== "";
 
@@ -534,6 +547,24 @@ export function Products() {
                   min="1"
                 />
               </div>
+
+              {/* Show Deleted Filter */}
+              <div className="flex items-end pb-2">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={showDeleted}
+                    onChange={(e) => {
+                      setShowDeleted(e.target.checked);
+                      setCurrentPage(1);
+                    }}
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                  />
+                  <span className="text-sm font-medium group-hover:text-primary transition-colors">
+                    Show Deleted Products
+                  </span>
+                </label>
+              </div>
             </div>
           )}
 
@@ -582,6 +613,17 @@ export function Products() {
                   <button
                     onClick={() => setCategoryId("")}
                     className="hover:text-primary/80"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {showDeleted && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-1 text-xs text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                  Including Deleted
+                  <button
+                    onClick={() => setShowDeleted(false)}
+                    className="hover:text-red-600"
                   >
                     <X className="h-3 w-3" />
                   </button>
