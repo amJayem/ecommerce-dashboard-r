@@ -17,6 +17,9 @@ export type Permission =
   | 'order.update'
   | 'order.delete'
   | 'admin.action'
+  | 'analytics.orders.read'
+  | 'analytics.sales.read'
+  | 'analytics.inventory.read'
 
 export function usePermissions() {
   const { user } = useAuth()
