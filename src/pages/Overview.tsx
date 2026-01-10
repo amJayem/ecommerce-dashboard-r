@@ -15,6 +15,8 @@ import {
   Loader2,
   RefreshCcw,
   Calendar as CalendarIcon,
+  Package,
+  Archive,
 } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { formatCurrency } from "@/lib/constants";
@@ -441,6 +443,110 @@ export function Overview() {
           </Card>
         )}
       </div>
+
+      {/* Inventory Overview */}
+      {hasPermission("analytics.inventory.read") && inventory && (
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">
+              Inventory Overview
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Current stock and catalog statistics
+            </p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Product Inventory Stats */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Package className="h-4 w-4 text-blue-600" />
+                  Product Inventory
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">
+                      Active Products
+                    </p>
+                    <p className="text-2xl font-bold text-emerald-600">
+                      {inventory?.products?.activeCount ?? 0}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Archived</p>
+                    <p className="text-2xl font-bold text-slate-500">
+                      {inventory?.products?.archivedCount ?? 0}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">
+                      Out of Stock
+                    </p>
+                    <p className="text-2xl font-bold text-red-600">
+                      {inventory?.products?.outOfStock ?? 0}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">
+                      Low Stock Items
+                    </p>
+                    <p className="text-2xl font-bold text-amber-600">
+                      {inventory?.products?.lowStock?.length ?? 0}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Category Inventory Stats */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Archive className="h-4 w-4 text-violet-600" />
+                  Category Inventory
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">
+                      Active Categories
+                    </p>
+                    <p className="text-2xl font-bold text-emerald-600">
+                      {inventory?.categories?.activeCount ?? 0}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Archived</p>
+                    <p className="text-2xl font-bold text-slate-500">
+                      {inventory?.categories?.archivedCount ?? 0}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">
+                      Total Categories
+                    </p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {(inventory?.categories?.activeCount ?? 0) +
+                        (inventory?.categories?.archivedCount ?? 0)}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">
+                      With Revenue
+                    </p>
+                    <p className="text-2xl font-bold text-violet-600">
+                      {inventory?.categories?.revenuePerCategory?.length ?? 0}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {/* Top Selling Products */}
