@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { userQueries, userMutations } from "@/lib/api/queries/users";
 import { UserTable } from "@/components/users/UserTable";
 import { ManageAccessModal } from "@/components/users/ManageAccessModal";
+import { ConfirmDeleteModal } from "@/components/shared/ConfirmDeleteModal";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,6 +26,16 @@ export function Users() {
     role?: string;
     permissions?: string[];
   } | null>(null);
+
+  const [confirmModalState, setConfirmModalState] = useState<{
+    isOpen: boolean;
+    type: "reject" | "suspend" | null;
+    userId: number | null;
+  }>({
+    isOpen: false,
+    type: null,
+    userId: null,
+  });
 
   const queryClient = useQueryClient();
 
@@ -79,9 +90,11 @@ export function Users() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       toast.success("User rejected successfully");
+      closeConfirmModal();
     },
     onError: (error: any) => {
       toast.error(`Error: ${error.message || "Failed to reject user"}`);
+      closeConfirmModal();
     },
   });
 
@@ -90,9 +103,11 @@ export function Users() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       toast.success("User suspended successfully");
+      closeConfirmModal();
     },
     onError: (error: any) => {
       toast.error(`Error: ${error.message || "Failed to suspend user"}`);
+      closeConfirmModal();
     },
   });
 
@@ -125,15 +140,37 @@ export function Users() {
     }
   };
 
-  const handleReject = async (id: number) => {
-    if (window.confirm("Are you sure you want to reject this user?")) {
-      await rejectMutation.mutateAsync(id);
-    }
+  const handleReject = (id: number) => {
+    setConfirmModalState({
+      isOpen: true,
+      type: "reject",
+      userId: id,
+    });
   };
 
-  const handleSuspend = async (id: number) => {
-    if (window.confirm("Are you sure you want to suspend this user?")) {
-      await suspendMutation.mutateAsync(id);
+  const handleSuspend = (id: number) => {
+    setConfirmModalState({
+      isOpen: true,
+      type: "suspend",
+      userId: id,
+    });
+  };
+
+  const closeConfirmModal = () => {
+    setConfirmModalState({
+      isOpen: false,
+      type: null,
+      userId: null,
+    });
+  };
+
+  const handleConfirmAction = async () => {
+    if (!confirmModalState.userId || !confirmModalState.type) return;
+
+    if (confirmModalState.type === "reject") {
+      await rejectMutation.mutateAsync(confirmModalState.userId);
+    } else if (confirmModalState.type === "suspend") {
+      await suspendMutation.mutateAsync(confirmModalState.userId);
     }
   };
 
@@ -189,6 +226,21 @@ export function Users() {
           onConfirm={handleApproveConfirm}
         />
       )}
+
+      <ConfirmDeleteModal
+        isOpen={confirmModalState.isOpen}
+        onClose={closeConfirmModal}
+        onConfirm={handleConfirmAction}
+        title={
+          confirmModalState.type === "reject" ? "Reject User" : "Suspend User"
+        }
+        description={
+          confirmModalState.type === "reject"
+            ? "Are you sure you want to reject this user? This action cannot be undone."
+            : "Are you sure you want to suspend this user? They will lose access to the dashboard."
+        }
+        loading={rejectMutation.isPending || suspendMutation.isPending}
+      />
     </div>
   );
 }

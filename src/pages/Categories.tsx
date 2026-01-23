@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteModal } from "@/components/shared/ConfirmDeleteModal";
 import {
   Card,
   CardContent,
@@ -46,6 +47,14 @@ export function Categories() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const debouncedSearch = useDebounce(searchQuery, 300);
+
+  const [confirmModalState, setConfirmModalState] = useState<{
+    isOpen: boolean;
+    category: Category | null;
+  }>({
+    isOpen: false,
+    category: null,
+  });
 
   // React Query hooks
   const {
@@ -204,14 +213,20 @@ export function Categories() {
     },
   ];
 
-  const handleDelete = async (category: Category) => {
-    if (!confirm(`Delete "${category.name}"? This cannot be undone.`)) {
-      return;
-    }
+  const handleDelete = (category: Category) => {
+    setConfirmModalState({
+      isOpen: true,
+      category,
+    });
+  };
+
+  const confirmDelete = async () => {
+    if (!confirmModalState.category) return;
 
     try {
-      await deleteCategoryMutation.mutateAsync(category.id);
+      await deleteCategoryMutation.mutateAsync(confirmModalState.category.id);
       // React Query will automatically refetch the categories list
+      setConfirmModalState({ isOpen: false, category: null });
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to delete category";
@@ -392,6 +407,14 @@ export function Categories() {
         ]}
         onImport={(file) => importMutation.mutateAsync(file)}
         onDownloadSample={handleDownloadSample}
+      />
+      <ConfirmDeleteModal
+        isOpen={confirmModalState.isOpen}
+        onClose={() => setConfirmModalState({ isOpen: false, category: null })}
+        onConfirm={confirmDelete}
+        title="Delete Category"
+        description={`Are you sure you want to delete "${confirmModalState.category?.name}"? This cannot be undone.`}
+        loading={deleteCategoryMutation.isPending}
       />
     </div>
   );

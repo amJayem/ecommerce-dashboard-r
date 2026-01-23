@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { ConfirmDeleteModal } from "@/components/shared/ConfirmDeleteModal";
 import {
   Card,
   CardContent,
@@ -31,6 +32,8 @@ export function OrderDetails() {
   const navigate = useNavigate();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   usePageTitle(order ? `Order #${order.id}` : "Order Details");
 
@@ -54,14 +57,8 @@ export function OrderDetails() {
   };
 
   const handleDelete = async () => {
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this order? This action cannot be undone."
-      )
-    )
-      return;
-
     try {
+      setIsDeleting(true);
       if (order?.id) {
         await ordersApi.delete(order.id);
         toast.success("Order deleted successfully");
@@ -70,6 +67,9 @@ export function OrderDetails() {
     } catch (error) {
       toast.error("Failed to delete order");
       console.error(error);
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteModalOpen(false);
     }
   };
 
@@ -118,7 +118,10 @@ export function OrderDetails() {
             <Printer className="mr-2 h-4 w-4" />
             Print
           </Button>
-          <Button variant="destructive" onClick={handleDelete}>
+          <Button
+            variant="destructive"
+            onClick={() => setIsDeleteModalOpen(true)}
+          >
             <Trash2 className="mr-2 h-4 w-4" />
             Delete Order
           </Button>
@@ -235,10 +238,12 @@ export function OrderDetails() {
             <CardContent className="space-y-4">
               <div>
                 <p className="font-medium">
-                  {order.user?.name || "Guest Customer"}
+                  {order.userId ? order.user?.name : "Guest Customer"}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {order.user?.email || "No email provided"}
+                  {order.userId
+                    ? order.user?.email
+                    : order.guestEmail || "No email provided"}
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {order.user?.phoneNumber || "No phone"}
@@ -257,26 +262,49 @@ export function OrderDetails() {
             <CardContent className="space-y-2 text-sm">
               {order.shippingAddress ? (
                 <>
-                  <p className="font-medium">{order.shippingAddress.name}</p>
-                  <p>{order.shippingAddress.address1}</p>
-                  {order.shippingAddress.address2 && (
-                    <p>{order.shippingAddress.address2}</p>
-                  )}
+                  <p className="font-medium">
+                    {order.shippingAddress.firstName}{" "}
+                    {order.shippingAddress.lastName}
+                  </p>
+                  <p>{order.shippingAddress.street}</p>
                   <p>
                     {order.shippingAddress.city},{" "}
-                    {order.shippingAddress.postalCode}
+                    {order.shippingAddress.zipCode}
                   </p>
+                  <p>{order.shippingAddress.country}</p>
                   <p>{order.shippingAddress.phone}</p>
-                  {order.shippingAddress.note && (
-                    <div className="mt-2 p-2 bg-muted rounded text-xs">
-                      <strong>Note:</strong> {order.shippingAddress.note}
-                    </div>
-                  )}
                 </>
               ) : (
                 <p className="text-muted-foreground italic">
                   {order.shippingAddressText || "No address provided"}
                 </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Billing Address
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              {order.billingAddress ? (
+                <>
+                  <p className="font-medium">
+                    {order.billingAddress.firstName}{" "}
+                    {order.billingAddress.lastName}
+                  </p>
+                  <p>{order.billingAddress.street}</p>
+                  <p>
+                    {order.billingAddress.city}, {order.billingAddress.zipCode}
+                  </p>
+                  <p>{order.billingAddress.country}</p>
+                  <p>{order.billingAddress.phone}</p>
+                </>
+              ) : (
+                <p className="text-muted-foreground italic">Same as shipping</p>
               )}
             </CardContent>
           </Card>
@@ -325,6 +353,15 @@ export function OrderDetails() {
           </Card>
         </div>
       </div>
+
+      <ConfirmDeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete Order"
+        description="Are you sure you want to delete this order? This action cannot be undone."
+        loading={isDeleting}
+      />
     </div>
   );
 }

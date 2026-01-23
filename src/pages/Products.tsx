@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
+import { ConfirmDeleteModal } from "@/components/shared/ConfirmDeleteModal";
 import {
   Card,
   CardContent,
@@ -59,6 +60,16 @@ export function Products() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [categoryId, setCategoryId] = useState<string>("");
   const [showFilters, setShowFilters] = useState(false);
+
+  const [confirmModalState, setConfirmModalState] = useState<{
+    isOpen: boolean;
+    productId: number | null;
+    productName: string;
+  }>({
+    isOpen: false,
+    productId: null,
+    productName: "",
+  });
 
   // Build query params
   const queryParams = useMemo<ProductListParams>(() => {
@@ -326,14 +337,21 @@ export function Products() {
     setCurrentPage(1);
   };
 
-  const handleDelete = async (id: number, name: string) => {
-    if (!confirm(`Are you sure you want to delete "${name}"?`)) {
-      return;
-    }
+  const handleDelete = (id: number, name: string) => {
+    setConfirmModalState({
+      isOpen: true,
+      productId: id,
+      productName: name,
+    });
+  };
+
+  const confirmDelete = async () => {
+    if (!confirmModalState.productId) return;
 
     try {
-      await deleteProductMutation.mutateAsync(id);
+      await deleteProductMutation.mutateAsync(confirmModalState.productId);
       // React Query will automatically refetch the products list
+      setConfirmModalState({ isOpen: false, productId: null, productName: "" });
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to delete product";
@@ -783,6 +801,21 @@ export function Products() {
         ]}
         onImport={(file) => importMutation.mutateAsync(file)}
         onDownloadSample={handleDownloadSample}
+      />
+
+      <ConfirmDeleteModal
+        isOpen={confirmModalState.isOpen}
+        onClose={() =>
+          setConfirmModalState({
+            isOpen: false,
+            productId: null,
+            productName: "",
+          })
+        }
+        onConfirm={confirmDelete}
+        title="Delete Product"
+        description={`Are you sure you want to delete "${confirmModalState.productName}"? This cannot be undone.`}
+        loading={deleteProductMutation.isPending}
       />
     </div>
   );

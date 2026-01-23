@@ -20,8 +20,8 @@ interface UserTableProps {
     role?: string,
     permissions?: string[]
   ) => void;
-  onReject: (id: number) => Promise<void>;
-  onSuspend: (id: number) => Promise<void>;
+  onReject: (id: number) => void;
+  onSuspend: (id: number) => void;
 }
 
 export function UserTable({

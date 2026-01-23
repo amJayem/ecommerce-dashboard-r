@@ -28,13 +28,18 @@ export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
 export type PaymentMethod = 'BKASH' | 'CASH_ON_DELIVERY' | 'STRIPE'
 
 export interface ShippingAddress {
-  name: string
-  phone: string
-  address1: string
-  address2?: string | null
+  id?: number
+  firstName: string
+  lastName: string
+  street: string
   city: string
-  postalCode: string
-  note?: string | null
+  state?: string | null
+  zipCode: string
+  country: string
+  phone: string
+  email?: string
+  addressType?: string
+  isDefault?: boolean
 }
 
 export interface OrderItem {
@@ -55,7 +60,8 @@ export interface OrderItem {
 
 export interface Order {
   id: number
-  userId: number
+  userId: number | null
+  guestEmail: string | null
   status: OrderStatus
   totalAmount: number
   subtotal: number

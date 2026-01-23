@@ -15,8 +15,6 @@ import {
   Settings2,
 } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useState } from "react";
-import { Loader2 } from "lucide-react";
 
 interface UserActionsProps {
   userId: number;
@@ -28,8 +26,8 @@ interface UserActionsProps {
     role?: string,
     permissions?: string[]
   ) => void;
-  onReject: (id: number) => Promise<void>;
-  onSuspend: (id: number) => Promise<void>;
+  onReject: (id: number) => void;
+  onSuspend: (id: number) => void;
 }
 
 export function UserActions({
@@ -41,20 +39,10 @@ export function UserActions({
   onSuspend,
 }: UserActionsProps) {
   const { hasPermission } = usePermissions();
-  const [isLoading, setIsLoading] = useState(false);
 
-  const handleAction = async (action: () => Promise<void>) => {
-    try {
-      setIsLoading(true);
-      await action();
-    } finally {
-      setIsLoading(false);
-    }
+  const handleAction = (action: () => void) => {
+    action();
   };
-
-  if (isLoading) {
-    return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
-  }
 
   return (
     <DropdownMenu>
