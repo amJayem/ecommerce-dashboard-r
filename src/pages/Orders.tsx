@@ -459,9 +459,9 @@ export function Orders() {
                       <td className="p-4">
                         <div>
                           <p className="font-medium text-primary">
-                            {order.shippingAddress?.name ||
-                              order.user?.name ||
-                              "Guest"}
+                            {order.shippingAddress
+                              ? `${order.shippingAddress.firstName} ${order.shippingAddress.lastName}`
+                              : order.user?.name || "Guest"}
                           </p>
                           <p className="text-sm text-muted-foreground">
                             {order.user?.email || "N/A"}
