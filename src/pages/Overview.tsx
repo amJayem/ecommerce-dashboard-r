@@ -59,8 +59,17 @@ export function Overview() {
   usePageTitle("Overview");
   const { hasPermission } = usePermissions();
   const [period, setPeriod] = useState<AnalyticsPeriod>("7d");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+
+  // Helper to format date as YYYY-MM-DD
+  const formatDate = (date: Date) => date.toISOString().split("T")[0];
+
+  // Initialize with 7 days range
+  const [startDate, setStartDate] = useState(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 7);
+    return formatDate(date);
+  });
+  const [endDate, setEndDate] = useState(() => formatDate(new Date()));
 
   const analyticsFilter = useMemo(() => {
     if (period === "custom") {
@@ -146,24 +155,27 @@ export function Overview() {
         </div>
         <div className="flex flex-col gap-2 md:items-end">
           <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
-            {(["today", "7d", "30d", "custom"] as const).map((p) => (
+            {(["today", "7d", "30d"] as const).map((p) => (
               <Button
                 key={p}
                 variant={period === p ? "secondary" : "ghost"}
                 size="sm"
-                onClick={() => setPeriod(p)}
+                onClick={() => {
+                  setPeriod(p);
+                  const end = new Date();
+                  const start = new Date();
+                  if (p === "7d") start.setDate(end.getDate() - 7);
+                  if (p === "30d") start.setDate(end.getDate() - 30);
+                  // for 'today', start and end match current date (or start of day? usually API handles 'today' as start of day till now)
+                  setStartDate(formatDate(start));
+                  setEndDate(formatDate(end));
+                }}
                 className={cn(
                   "h-8 px-3 text-xs font-medium",
                   period === p && "bg-background shadow-sm"
                 )}
               >
-                {p === "today"
-                  ? "Today"
-                  : p === "7d"
-                  ? "7 Days"
-                  : p === "30d"
-                  ? "30 Days"
-                  : "Custom"}
+                {p === "today" ? "Today" : p === "7d" ? "7 Days" : "30 Days"}
               </Button>
             ))}
             <Button
@@ -176,36 +188,40 @@ export function Overview() {
             </Button>
           </div>
 
-          {period === "custom" && (
-            <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
-              <div className="relative">
-                <CalendarIcon className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  onClick={(e) => e.currentTarget.showPicker()}
-                  onKeyDown={(e) => e.preventDefault()}
-                  className="h-8 w-36 pl-7 text-xs cursor-pointer hover:bg-muted transition-colors"
-                />
-              </div>
-              <span className="text-muted-foreground text-xs font-medium">
-                to
-              </span>
-              <div className="relative">
-                <CalendarIcon className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  onClick={(e) => e.currentTarget.showPicker()}
-                  onKeyDown={(e) => e.preventDefault()}
-                  placeholder="Today"
-                  className="h-8 w-36 pl-7 text-xs cursor-pointer hover:bg-muted transition-colors"
-                />
-              </div>
+          <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="relative">
+              <CalendarIcon className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                  setPeriod("custom");
+                }}
+                onClick={(e) => e.currentTarget.showPicker()}
+                onKeyDown={(e) => e.preventDefault()}
+                className="h-8 w-36 pl-7 text-xs cursor-pointer hover:bg-muted transition-colors"
+              />
             </div>
-          )}
+            <span className="text-muted-foreground text-xs font-medium">
+              to
+            </span>
+            <div className="relative">
+              <CalendarIcon className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => {
+                  setEndDate(e.target.value);
+                  setPeriod("custom");
+                }}
+                onClick={(e) => e.currentTarget.showPicker()}
+                onKeyDown={(e) => e.preventDefault()}
+                placeholder="Today"
+                className="h-8 w-36 pl-7 text-xs cursor-pointer hover:bg-muted transition-colors"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
