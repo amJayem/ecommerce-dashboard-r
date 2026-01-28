@@ -84,7 +84,7 @@ export function ProductForm() {
 
   // React Query hooks
   const { data: product, isLoading: isLoadingProduct } = useProduct(
-    productId ? Number(productId) : undefined
+    productId ? Number(productId) : undefined,
   );
 
   const {
@@ -251,7 +251,11 @@ export function ProductForm() {
 
   return (
     <div className="space-y-8">
-      <ProductHeader isEditMode={isEditMode} />
+      <ProductHeader
+        isEditMode={isEditMode}
+        productId={productId ? Number(productId) : undefined}
+        productName={product?.name}
+      />
 
       <Card>
         <CardHeader>

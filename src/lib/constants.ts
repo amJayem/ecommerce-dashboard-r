@@ -52,3 +52,29 @@ export function formatCurrency(
   return showSymbol ? `${CURRENCY.symbol}${formatted}` : formatted
 }
 
+/**
+ * Storefront configuration
+ * Base URL for the customer-facing storefront application
+ */
+const STOREFRONT_BASE_URL = 
+  import.meta.env.VITE_STOREFRONT_URL || 'https://ecommerce-web-dun-alpha.vercel.app'
+
+/**
+ * Get the base storefront URL
+ * @returns The configured storefront base URL
+ */
+export function getStorefrontUrl(): string {
+  return STOREFRONT_BASE_URL
+}
+
+/**
+ * Construct the full storefront URL for a specific product
+ * @param productId - The ID of the product
+ * @returns Full URL to the product page on the storefront
+ * 
+ * @example
+ * getProductStorefrontUrl(202601271) // Returns "https://ecommerce-web-dun-alpha.vercel.app/products/202601271"
+ */
+export function getProductStorefrontUrl(productId: number): string {
+  return `${STOREFRONT_BASE_URL}/products/${productId}`
+}
