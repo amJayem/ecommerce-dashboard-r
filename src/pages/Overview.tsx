@@ -17,9 +17,14 @@ import {
   Calendar as CalendarIcon,
   Package,
   Archive,
+  ExternalLink,
 } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
-import { formatCurrency } from "@/lib/constants";
+import {
+  formatCurrency,
+  getProductStorefrontUrl,
+  getCategoryStorefrontUrl,
+} from "@/lib/constants";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
   useAnalyticsSummary,
@@ -172,7 +177,7 @@ export function Overview() {
                 }}
                 className={cn(
                   "h-8 px-3 text-xs font-medium",
-                  period === p && "bg-background shadow-sm"
+                  period === p && "bg-background shadow-sm",
                 )}
               >
                 {p === "today" ? "Today" : p === "7d" ? "7 Days" : "30 Days"}
@@ -412,7 +417,7 @@ export function Overview() {
                                   ] || "#cbd5e1"
                                 }
                               />
-                            )
+                            ),
                           )}
                         </Pie>
                         <Tooltip
@@ -596,8 +601,16 @@ export function Overview() {
                               key={product.id}
                               className="border-b last:border-0"
                             >
-                              <td className="py-3 font-medium">
-                                {product.name}
+                              <td className="py-3">
+                                <a
+                                  href={getProductStorefrontUrl(product.id)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="group inline-flex items-center gap-1.5 font-medium hover:text-primary transition-colors"
+                                >
+                                  {product.name}
+                                  <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-primary transition-colors opacity-0 group-hover:opacity-100" />
+                                </a>
                               </td>
                               <td className="py-3 text-muted-foreground">
                                 {product.sku || "N/A"}
@@ -609,7 +622,7 @@ export function Overview() {
                                 {formatCurrency(product.revenue)}
                               </td>
                             </tr>
-                          )
+                          ),
                         )}
                       </tbody>
                     </table>
@@ -641,7 +654,15 @@ export function Overview() {
                     .map((cat: CategoryRevenue) => (
                       <div key={cat.id} className="space-y-1">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="font-medium">{cat.name}</span>
+                          <a
+                            href={getCategoryStorefrontUrl(cat.slug, cat.name)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="group inline-flex items-center gap-1 font-medium hover:text-primary transition-colors"
+                          >
+                            {cat.name}
+                            <ExternalLink className="h-2.5 w-2.5 text-muted-foreground group-hover:text-primary transition-colors opacity-0 group-hover:opacity-100" />
+                          </a>
                           <span className="text-muted-foreground">
                             {formatCurrency(cat.revenue)}
                           </span>
@@ -656,8 +677,8 @@ export function Overview() {
                                       Math.max(
                                         1,
                                         ...(inventory?.categories?.revenuePerCategory?.map(
-                                          (c: CategoryRevenue) => c.revenue
-                                        ) || [0])
+                                          (c: CategoryRevenue) => c.revenue,
+                                        ) || [0]),
                                       )) *
                                     100
                                   : 0

@@ -78,3 +78,30 @@ export function getStorefrontUrl(): string {
 export function getProductStorefrontUrl(productId: number): string {
   return `${STOREFRONT_BASE_URL}/products/${productId}`
 }
+
+/**
+ * Convert a string to URL-friendly slug format
+ * @param text - The text to convert to slug
+ * @returns Slugified text
+ */
+function toSlug(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)+/g, '');
+}
+
+/**
+ * Construct the full storefront URL for a specific category
+ * @param categorySlug - The slug of the category (if undefined, will use categoryName)
+ * @param categoryName - The name of the category (used as fallback if slug is undefined)
+ * @returns Full URL to the category page on the storefront
+ * 
+ * @example
+ * getCategoryStorefrontUrl("staples") // Returns "https://ecommerce-web-dun-alpha.vercel.app/products/categories/staples"
+ * getCategoryStorefrontUrl(undefined, "Staples") // Returns "https://ecommerce-web-dun-alpha.vercel.app/products/categories/staples"
+ */
+export function getCategoryStorefrontUrl(categorySlug?: string, categoryName?: string): string {
+  const slug = categorySlug || (categoryName ? toSlug(categoryName) : 'unknown');
+  return `${STOREFRONT_BASE_URL}/products/categories/${slug}`;
+}

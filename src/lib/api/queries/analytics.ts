@@ -70,6 +70,7 @@ export interface TopProduct {
 export interface CategoryRevenue {
   id: number;
   name: string;
+  slug: string;
   revenue: number;
 }
 
